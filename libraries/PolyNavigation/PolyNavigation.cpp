@@ -8,8 +8,8 @@ PolyNavigation::~PolyNavigation()
 {
 }
 
-Array<double, 1, 6> PolyNavigation::polyMatrix(double initialTime,double endTime,double qi,double dqi,double d2qi,double qf,double dqf,double d2qf){
-    Matrix<double,6,1> q_v;
+Eigen::Array<double, 1, 6> PolyNavigation::polyMatrix(double initialTime,double endTime,double qi,double dqi,double d2qi,double qf,double dqf,double d2qf){
+    Eigen::Matrix<double,6,1> q_v;
     q_v << qi,
            dqi, 
            d2qi, 
@@ -18,7 +18,7 @@ Array<double, 1, 6> PolyNavigation::polyMatrix(double initialTime,double endTime
            d2qf;
     double delta_t = (endTime-initialTime);
             
-    Matrix<double,6,6> A;
+    Eigen::Matrix<double,6,6> A;
     A << 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
          0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
          0.0, 0.0, 2.0, 0.0, 0.0, 0.0,
@@ -26,16 +26,16 @@ Array<double, 1, 6> PolyNavigation::polyMatrix(double initialTime,double endTime
          0.0, 1.0, 2.0*delta_t, 3.0*powf(delta_t,2.0), 4.0*powf(delta_t,3.0), 5.0*powf(delta_t,4.0),
          0.0, 0.0, 2.0, 6.0*delta_t, 12.0*powf(delta_t,2.0), 20.0*powf(delta_t,3.0);
     
-    Matrix<double,1,6> solution = A.colPivHouseholderQr().solve(q_v);
+    Eigen::Matrix<double,1,6> solution = A.colPivHouseholderQr().solve(q_v);
     
-    Array<double, 1, 6> a;
+    Eigen::Array<double, 1, 6> a;
     a << solution.array();
     return a;
 }
 
-void PolyNavigation::trajectoryMatrices(double initialTime, double endTime, const Ref<const Array4d>& si,const Ref<const Array4d>& dsi,
-                                  const Ref<const Array4d>& d2si, const Ref<const Array4d>& sf,const Ref<const Array4d>& dsf,
-                                  const Ref<const Array4d>& d2sf,Ref<ArrayXd> ax,Ref<ArrayXd> ay,Ref<ArrayXd> az,Ref<ArrayXd> ayaw){
+void PolyNavigation::trajectoryMatrices(double initialTime, double endTime, const Eigen::Ref<const Eigen::Array4d>& si,const Eigen::Ref<const Eigen::Array4d>& dsi,
+                                  const Eigen::Ref<const Eigen::Array4d>& d2si, const Eigen::Ref<const Eigen::Array4d>& sf,const Eigen::Ref<const Eigen::Array4d>& dsf,
+                                  const Eigen::Ref<const Eigen::Array4d>& d2sf,Eigen::Ref<Eigen::ArrayXd> ax,Eigen::Ref<Eigen::ArrayXd> ay,Eigen::Ref<Eigen::ArrayXd> az,Eigen::Ref<Eigen::ArrayXd> ayaw){
     double xo= si(0);
     double yo= si(1);
     double zo= si(2);
@@ -69,7 +69,7 @@ void PolyNavigation::trajectoryMatrices(double initialTime, double endTime, cons
     ayaw = this->polyMatrix(initialTime,endTime,yawo,dyawo,d2yawo,yawf,dyawf,d2yawf);
 };
 
-Array<double, 1, 4> PolyNavigation::axisDesiredTrajectory(const Ref<const ArrayXd>& a, double time, double initialTime, double maxTime){
+Eigen::Array<double, 1, 4> PolyNavigation::axisDesiredTrajectory(const Eigen::Ref<const Eigen::ArrayXd>& a, double time, double initialTime, double maxTime){
     double ao = a(0);
     double a1 = a(1);
     double a2 = a(2);
@@ -89,7 +89,7 @@ Array<double, 1, 4> PolyNavigation::axisDesiredTrajectory(const Ref<const ArrayX
         delta_t = time-initialTime;
     }
 
-    Array<double, 1, 4> q;
+    Eigen::Array<double, 1, 4> q;
     q << ao + a1*delta_t + a2*powf(delta_t,2.0)  + a3*powf(delta_t,3.0) + a4*powf(delta_t,4.0) + a5*powf(delta_t,5.0),
          a1 +  2.0*a2*delta_t + 3.0*a3*powf(delta_t,2.0) + 4.0*a4*powf(delta_t,3.0) + 5.0*a5*powf(delta_t,4.0),
          2.0*a2 + 6.0*a3*delta_t + 12.0*a4*powf(delta_t,2.0) + 20.0*a5*powf(delta_t,3.0),
@@ -100,7 +100,7 @@ Array<double, 1, 4> PolyNavigation::axisDesiredTrajectory(const Ref<const ArrayX
 
 void PolyNavigation::geronoToWaypoints(double length, double width, double height, double endTime, 
                                  int steps, yawType yawtype, double yawSp, 
-                                 Ref<MatrixXd> waypoints, Ref<ArrayXd> time){
+                                 Eigen::Ref<Eigen::MatrixXd> waypoints, Eigen::Ref<Eigen::ArrayXd> time){
     double a = length/2;
     double b = width;
     double c = height/2;
@@ -142,20 +142,20 @@ void PolyNavigation::geronoToWaypoints(double length, double width, double heigh
     //cout << "foi 2" << endl;
 };
 
-void PolyNavigation::start(const Ref<const Array3d>& initialPosition, 
-                             const Ref<const Array3d>& initialVelocity, double initialYaw, double initialYawSpeed){
-    Array4d si;
-    Array4d dsi;
-    Array4d d2si; 
-    Array4d sf;
-    Array4d dsf;
-    Array4d d2sf;
+void PolyNavigation::start(const Eigen::Ref<const Eigen::Array3d>& initialPosition, 
+                             const Eigen::Ref<const Eigen::Array3d>& initialVelocity, double initialYaw, double initialYawSpeed){
+    Eigen::Array4d si;
+    Eigen::Array4d dsi;
+    Eigen::Array4d d2si; 
+    Eigen::Array4d sf;
+    Eigen::Array4d dsf;
+    Eigen::Array4d d2sf;
     double ti, tf;
 
-    ArrayXd ax = ArrayXd::Zero(6);
-    ArrayXd ay = ArrayXd::Zero(6);
-    ArrayXd az = ArrayXd::Zero(6);
-    ArrayXd ayaw = ArrayXd::Zero(6);
+    Eigen::ArrayXd ax = Eigen::ArrayXd::Zero(6);
+    Eigen::ArrayXd ay = Eigen::ArrayXd::Zero(6);
+    Eigen::ArrayXd az = Eigen::ArrayXd::Zero(6);
+    Eigen::ArrayXd ayaw = Eigen::ArrayXd::Zero(6);
 
     this->_endTime.resize(this->_timeTo.size());
     this->_map_ax.resize(this->_timeTo.size(),6);
@@ -213,10 +213,10 @@ bool PolyNavigation::updateTrajectory(){
             ti = this->_endTime(index-1);
         }
         
-        Array<double, 1, 4> desTrajx;
-        Array<double, 1, 4> desTrajy;
-        Array<double, 1, 4> desTrajz;
-        Array<double, 1, 4> desTrajyaw;
+        Eigen::Array<double, 1, 4> desTrajx;
+        Eigen::Array<double, 1, 4> desTrajy;
+        Eigen::Array<double, 1, 4> desTrajz;
+        Eigen::Array<double, 1, 4> desTrajyaw;
         desTrajx = axisDesiredTrajectory(this->_map_ax.row(index),time,ti,this->_endTime(index));
         desTrajy = axisDesiredTrajectory(this->_map_ay.row(index),time,ti,this->_endTime(index));
         desTrajz = axisDesiredTrajectory(this->_map_az.row(index),time,ti,this->_endTime(index));
@@ -238,7 +238,7 @@ void PolyNavigation::stop(){
     this->_isRunning = false;
 };
 
-void PolyNavigation::addWaypoint(const Ref<const Array<double, 12, 1>>& waypoint, double timeTo){
+void PolyNavigation::addWaypoint(const Eigen::Ref<const Eigen::Array<double, 12, 1>>& waypoint, double timeTo){
     this->_waypoints.conservativeResize(Eigen::NoChange,this->_waypoints.cols()+1);
     this->_waypoints.rightCols(1) = waypoint;
     this->_timeTo.conservativeResize(this->_timeTo.size()+1);
