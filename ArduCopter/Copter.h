@@ -67,6 +67,7 @@
 #include <AC_AutoTune/AC_AutoTune.h>
 #include <AP_Parachute/AP_Parachute.h>
 #include <AC_Sprayer/AC_Sprayer.h>
+#include <PolyNavigation/PolyNavigation.h>
 
 // Configuration
 #include "defines.h"
@@ -388,6 +389,9 @@ private:
     Mode::Number prev_control_mode;
 
     RCMapper rcmap;
+
+    //Polynomial trajectory generator
+    PolyNavigation polyNav;
 
     // intertial nav alt when we armed
     float arming_altitude_m;

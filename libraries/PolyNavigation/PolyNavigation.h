@@ -1,9 +1,9 @@
 
-/// @file	traj_gen.h
+/// @file	PolyNavigation.h
 /// @brief	Library to configure and execute 5th polynomial trajectory with positions, velocities and accelerations.
 
-#ifndef TRAJ_GEN_H
-#define TRAJ_GEN_H
+#ifndef POLYNAVIGATION_H
+#define POLYNAVIGATION_H
 
 #pragma once
 
@@ -18,7 +18,7 @@ using namespace std;
 
 enum yawType {rot360,goTo};
 
-class traj_gen
+class PolyNavigation
 {
 private:
     /* data */
@@ -28,6 +28,12 @@ private:
     Array<double, Dynamic, 6> _map_az;
     Array<double, Dynamic, 6> _map_ayaw;
     Array<double, Dynamic, 1> _endTime;
+
+    // Last desired values
+    Vector3d _desiredPosition;
+    Vector3d _desiredVelocity;
+    Vector3d _desiredAcceleration;
+    double _desiredYaw;
 
     //Other
     Array<double, 12, Dynamic> _waypoints;  // Waypoints
@@ -58,18 +64,29 @@ private:
                                     double d2qf);
     Array<double, 1, 4> axisDesiredTrajectory(const Ref<const ArrayXd>& a, double time, double initialTime, double maxTime);
 public:
-    traj_gen(/* args */);
-    ~traj_gen();
+    PolyNavigation(/* args */);
+    ~PolyNavigation();
 
     void geronoToWaypoints(double length, double width, double height, double endTime, int steps, 
                            yawType yawtype, double yawSp, Ref<MatrixXd> waypoints, Ref<ArrayXd> time);
     
-    void desiredTrajectory(Ref<Vector3d> position, Ref<Vector3d> velocity, Ref<Vector3d> acceleration, double& yaw); 
-
+    // Commands
+    bool updateTrajectory(); 
     void start(const Ref<const Array3d>& initialPosition, const Ref<const Array3d>& initialVelocity, double initialYaw, double initialYawSpeed);
     void stop();
     void addWaypoint(const Ref<const Array<double, 12, 1>>& waypoint, double timeTo);
     void clear();
+
+    //Access
+    const Vector3d getDesiredPosition() {return _desiredPosition;};
+    const Vector3d getDesiredVelocity() {return _desiredVelocity;};
+    const Vector3d getDesiredAcceleration() {return _desiredAcceleration;};
+    const double getDesiredYaw() {return _desiredYaw;};
+    const bool isRunning() {return _isRunning;};
+    const Array<double, 12, Dynamic> getWaypoints() {return _waypoints;};
+    const Array<double, Dynamic,1> getTimeTo() {return _timeTo;};
+    const std::string getWaypointsString() {std::stringstream ss; ss << _waypoints; return ss.str();};
+    const std::string getTimeToString() {std::stringstream ss; ss << _timeTo; return ss.str();};
 };
  
 #endif

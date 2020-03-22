@@ -890,6 +890,80 @@ void GCS_MAVLINK_Copter::handleMessage(const mavlink_message_t &msg)
       
     switch (msg.msgid) {
 
+    case MAVLINK_MSG_ID_POLY_ADD_WP:
+    {
+        mavlink_poly_add_wp_t packet;
+        mavlink_msg_poly_add_wp_decode(&msg,&packet);
+
+        Eigen::Array<double, 12, 1> waypointAux;
+        waypointAux(0) = packet.x_lat;
+        waypointAux(1) = packet.y_lon;
+        waypointAux(2) = packet.z_alt;
+        waypointAux(3) = packet.yaw;
+        waypointAux(4) = packet.x_vel;
+        waypointAux(5) = packet.y_vel;
+        waypointAux(6) = packet.z_vel;
+        waypointAux(7) = packet.yaw_vel;
+        waypointAux(8) = packet.x_acc;
+        waypointAux(9) = packet.y_acc;
+        waypointAux(10) = packet.z_acc;
+        waypointAux(11) = packet.yaw_acc;
+        copter.polyNav.addWaypoint(waypointAux,packet.timeto);
+
+        break;
+    }
+
+    case MAVLINK_MSG_ID_POLY_CLEAR:
+    {
+        mavlink_poly_clear_t packet;
+        mavlink_msg_poly_clear_decode(&msg,&packet);
+
+        copter.polyNav.clear();
+        break;
+    }
+    
+    case MAVLINK_MSG_ID_POLY_START:
+    {
+        mavlink_poly_start_t packet;
+        mavlink_msg_poly_start_decode(&msg,&packet);
+
+        Location positionAux;
+        Location homeAux;
+        Vector3<float> distanceAux;
+        copter.ahrs.get_position(positionAux);
+        homeAux = copter.ahrs.get_home();
+        distanceAux = homeAux.get_distance_NED(positionAux);
+        distanceAux.y = -distanceAux.y;
+        distanceAux.z = -distanceAux.z;
+
+        Vector3<float> velocityAux;
+        copter.ahrs.get_velocity_NED(velocityAux);
+        velocityAux.y = -velocityAux.y;
+        velocityAux.z = -velocityAux.z;
+
+        Eigen::Array3d position;
+        Eigen::Array3d velocity;
+        position(0) = distanceAux.x;
+        position(1) = distanceAux.y;
+        position(2) = distanceAux.z;
+        velocity(0) = velocityAux.x;
+        velocity(1) = velocityAux.y;
+        velocity(2) = velocityAux.z;
+        
+        copter.polyNav.start(position,velocity,-copter.ahrs.get_yaw(),-copter.ahrs.get_yaw_rate_earth());
+        hal.console->printf("Waypoints: \n %s \n",copter.polyNav.getWaypointsString());        
+        break;
+    }
+
+    case MAVLINK_MSG_ID_POLY_STOP:
+    {
+        mavlink_poly_stop_t packet;
+        mavlink_msg_poly_stop_decode(&msg,&packet);
+
+        copter.polyNav.stop();
+        break;
+    }
+
     case MAVLINK_MSG_ID_HEARTBEAT:      // MAV ID: 0
     {
         // We keep track of the last time we received a heartbeat from our GCS for failsafe purposes

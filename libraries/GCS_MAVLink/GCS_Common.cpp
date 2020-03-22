@@ -1307,7 +1307,6 @@ void GCS_MAVLINK::packetReceived(const mavlink_status_t &status,
         return;
     }
 
-    hal.console->printf("new message ID: %d \n", msg.msgid); 
     handleMessage(msg);
 }
 
