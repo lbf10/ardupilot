@@ -895,7 +895,7 @@ void GCS_MAVLINK_Copter::handleMessage(const mavlink_message_t &msg)
         mavlink_poly_add_wp_t packet;
         mavlink_msg_poly_add_wp_decode(&msg,&packet);
 
-        Eigen::Array<double, 12, 1> waypointAux;
+        Eigen::Array<float, 12, 1> waypointAux;
         waypointAux(0) = packet.x_lat;
         waypointAux(1) = packet.y_lon;
         waypointAux(2) = packet.z_alt;
@@ -929,20 +929,20 @@ void GCS_MAVLINK_Copter::handleMessage(const mavlink_message_t &msg)
 
         Location positionAux;
         Location homeAux;
-        Vector3<float> distanceAux;
+        Vector3f distanceAux;
         copter.ahrs.get_position(positionAux);
         homeAux = copter.ahrs.get_home();
         distanceAux = homeAux.get_distance_NED(positionAux);
         distanceAux.y = -distanceAux.y;
         distanceAux.z = -distanceAux.z;
 
-        Vector3<float> velocityAux;
+        Vector3f velocityAux;
         copter.ahrs.get_velocity_NED(velocityAux);
         velocityAux.y = -velocityAux.y;
         velocityAux.z = -velocityAux.z;
 
-        Eigen::Array3d position;
-        Eigen::Array3d velocity;
+        Eigen::Array3f position;
+        Eigen::Array3f velocity;
         position(0) = distanceAux.x;
         position(1) = distanceAux.y;
         position(2) = distanceAux.z;
