@@ -26,7 +26,8 @@ Eigen::Array<float, 1, 6> PolyNavigation::polyMatrix(float initialTime,float end
          0.0, 1.0, 2.0*delta_t, 3.0*powf(delta_t,2.0), 4.0*powf(delta_t,3.0), 5.0*powf(delta_t,4.0),
          0.0, 0.0, 2.0, 6.0*delta_t, 12.0*powf(delta_t,2.0), 20.0*powf(delta_t,3.0);
     
-    Eigen::Matrix<float,1,6> solution = A.colPivHouseholderQr().solve(q_v);
+    Eigen::Matrix<float,1,6> solution;
+    solution = A.colPivHouseholderQr().solve(q_v);
     
     Eigen::Array<float, 1, 6> a;
     a << solution.array();
@@ -167,6 +168,7 @@ void PolyNavigation::start(const Eigen::Ref<const Eigen::Array3f>& initialPositi
     dsi << initialVelocity, initialYawSpeed;
     d2si << 0.0, 0.0, 0.0, 0.0;
     ti = 0;
+    tf = 0;
     for(int it=0;it<this->_waypoints.cols();it++){
         sf << this->_waypoints(0,it), this->_waypoints(1,it), this->_waypoints(2,it), this->_waypoints(3,it);
         dsf << this->_waypoints(4,it), this->_waypoints(5,it), this->_waypoints(6,it), this->_waypoints(7,it);

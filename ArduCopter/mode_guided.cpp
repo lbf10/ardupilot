@@ -334,6 +334,7 @@ void ModeGuided::set_angle(const Quaternion &q, float climb_rate_cms, bool use_y
 // should be called at 100hz or more
 void ModeGuided::run()
 {
+    copter.polyNav.updateTrajectory();
     // call the correct auto controller
     switch (guided_mode) {
 
