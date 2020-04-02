@@ -169,6 +169,12 @@ Mode *Copter::mode_from_mode_num(const Mode::Number mode)
             break;
 #endif
 
+#if MODE_FT_LQR_ENABLED == ENABLED
+        case Mode::Number::FT_LQR:
+            ret = &mode_ft_lqr;
+            break;
+#endif
+
         default:
             break;
     }

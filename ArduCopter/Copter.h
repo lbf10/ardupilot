@@ -231,6 +231,7 @@ public:
     friend class ModeThrow;
     friend class ModeZigZag;
     friend class ModeAutorotate;
+    friend class ModeFT_LQR;
 
     Copter(void);
 
@@ -968,6 +969,10 @@ private:
 #endif
 #if MODE_AUTOROTATE_ENABLED == ENABLED
     ModeAutorotate mode_autorotate;
+#endif
+// New user modes
+#if MODE_FT_LQR_ENABLED == ENABLED
+    ModeFT_LQR mode_ft_lqr;
 #endif
 
     // mode.cpp
