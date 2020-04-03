@@ -334,7 +334,7 @@ void ModeFT_LQR::set_angle(const Quaternion &q, float climb_rate_cms, bool use_y
 // should be called at 100hz or more
 void ModeFT_LQR::run()
 {
-    copter.polyNav.updateTrajectory();
+    //copter.polyNav.updateTrajectory();
     // call the correct auto controller
     switch (ft_lqr_mode) {
 
