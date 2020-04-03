@@ -498,6 +498,10 @@ const AP_Param::Info Copter::var_info[] = {
     // @Path: ../libraries/AP_Compass/AP_Compass.cpp
     GOBJECT(compass,        "COMPASS_", Compass),
 
+    // @Group: MUCTRL_
+    // @Path: ../libraries/MultiControl/MultiControl.cpp
+    GOBJECT(multicontrol,        "MUCTRL_", MultiControl),
+
     // @Group: INS_
     // @Path: ../libraries/AP_InertialSensor/AP_InertialSensor.cpp
     GOBJECT(ins,            "INS_", AP_InertialSensor),

@@ -68,6 +68,7 @@
 #include <AP_Parachute/AP_Parachute.h>
 #include <AC_Sprayer/AC_Sprayer.h>
 #include <PolyNavigation/PolyNavigation.h>
+#include <MultiControl/MultiControl.h>
 
 // Configuration
 #include "defines.h"
@@ -393,6 +394,9 @@ private:
 
     //Polynomial trajectory generator
     PolyNavigation polyNav;
+
+    //MultiControl library
+    MultiControl multicontrol;
 
     // intertial nav alt when we armed
     float arming_altitude_m;

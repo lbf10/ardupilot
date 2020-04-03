@@ -375,6 +375,9 @@ public:
 
         k_param_vehicle = 257, // vehicle common block of parameters
 
+        // Custom 
+        k_param_multicontrol, // MultiControl library parameters
+
         // the k_param_* space is 9-bits in size
         // 511: reserved
     };
