@@ -12,6 +12,8 @@
 #include <string>
 #include <iostream>
 
+//////////////////////////////////////////////
+/* Multicopter configuration default values */
 #define MASS_DEFAULT    6.015 
 #define MOMENTS_OF_INERTIA_DEFAULT (0.3143978800, 0.3122127800, 0.5557912400)
 #define PRODUCTS_OF_INERTIA_DEFAULT (0.0000861200, -0.0014397600, 0.0002368800)
@@ -57,18 +59,25 @@
 #define ROTOR7_DIRECTION_DEFAULT -1
 #define ROTOR8_DIRECTION_DEFAULT 1
 
+////////////////////////////////////////////////
+/* Position PIDD configuration default values */
+#define PIDD_KP_DEFAULT (1.0, 1.0, 1.0)
+#define PIDD_KI_DEFAULT (1.0, 1.0, 1.0)
+#define PIDD_KD_DEFAULT (1.0, 1.0, 1.0)
+#define PIDD_KDD_DEFAULT (1.0, 1.0, 1.0)
+
 class MultiControl
 {
 private:
     /* data */
-    
+    Eigen::Matrix3f 
     /* members */
 
 public:
     // Constructor
     MultiControl(/* args */);
     
-    // Desctructor
+    // Destructor
     ~MultiControl();
 
     // Commands
@@ -81,6 +90,8 @@ public:
     static const struct AP_Param::GroupInfo var_info[];
    
 protected:
+    ////////////////////////////////
+    /* Multicopter configuration */
     AP_Float _mass;
     AP_Vector3f _momentsOfInertia;
     AP_Vector3f _productsOfInertia;
@@ -125,6 +136,13 @@ protected:
     AP_Int8 _rotor6Direction;
     AP_Int8 _rotor7Direction;
     AP_Int8 _rotor8Direction;
+
+    ////////////////////////////////
+    /* Position PIDD configuration */
+    AP_Vector3f _piddKp;
+    AP_Vector3f _piddKi;
+    AP_Vector3f _piddKd;
+    AP_Vector3f _piddKdd;
 };
  
 #endif

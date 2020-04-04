@@ -9,6 +9,9 @@ MultiControl::~MultiControl()
 }
 
 const AP_Param::GroupInfo MultiControl::var_info[] = {
+    ////////////////////////////////
+    /* Multicopter configuration */
+
     // @Param: MASS
     // @DisplayName: Multicopter mass
     // @Description: The mass of the multicopter to be controlled
@@ -336,6 +339,41 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Units: m
     // @User: Advanced
     AP_GROUPINFO("ROT8_DIR", 40, MultiControl, _rotor8Direction, ROTOR8_DIRECTION_DEFAULT),
+
+    ////////////////////////////////
+    /* Position PIDD configuration */
+
+    // @Param: PIDD_KP
+    // @DisplayName: Position PIDD Kp value
+    // @Description: Position error gain for the position control PIDD 
+    // @Range: 0.0 3.4E+38
+    // @Units: N/m
+    // @User: Advanced
+    AP_GROUPINFO("PIDD_KP", 41, MultiControl, _piddKp, PIDD_KP_DEFAULT),
+
+    // @Param: PIDD_KI
+    // @DisplayName: Position PIDD Ki value
+    // @Description: Position error integral gain for the position control PIDD 
+    // @Range: 0.0 3.4E+38
+    // @Units: N/m.s
+    // @User: Advanced
+    AP_GROUPINFO("PIDD_KI", 42, MultiControl, _piddKi, PIDD_KI_DEFAULT),
+
+    // @Param: PIDD_KD
+    // @DisplayName: Position PIDD Kd value
+    // @Description: Velocity error gain for the position control PIDD 
+    // @Range: 0.0 3.4E+38
+    // @Units: N.s/m
+    // @User: Advanced
+    AP_GROUPINFO("PIDD_KD", 43, MultiControl, _piddKd, PIDD_KD_DEFAULT),
+
+    // @Param: PIDD_KDD
+    // @DisplayName: Position PIDD Kdd value
+    // @Description: Acceleration error gain for the position control PIDD 
+    // @Range: 0.0 3.4E+38
+    // @Units: N.s^2/m
+    // @User: Advanced
+    AP_GROUPINFO("PIDD_KDD", 44, MultiControl, _piddKdd, PIDD_KDD_DEFAULT),
 
     AP_GROUPEND
 };
