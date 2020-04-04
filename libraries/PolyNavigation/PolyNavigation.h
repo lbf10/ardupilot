@@ -27,10 +27,13 @@ private:
     Eigen::Array<float, Eigen::Dynamic, 1> _endTime;
 
     // Last desired values
-    Eigen::Vector3f _desiredPosition;
-    Eigen::Vector3f _desiredVelocity;
-    Eigen::Vector3f _desiredAcceleration;
-    float _desiredYaw;
+    struct state
+    {
+        Eigen::Vector3f position;
+        Eigen::Vector3f velocity;
+        Eigen::Vector3f acceleration;
+        float yaw;
+    } _desiredState;
 
     //Other
     Eigen::Array<float, 12, Eigen::Dynamic> _waypoints;  // Waypoints
@@ -75,10 +78,11 @@ public:
     void clear();
 
     //Access
-    const Eigen::Vector3f getDesiredPosition() {return _desiredPosition;};
-    const Eigen::Vector3f getDesiredVelocity() {return _desiredVelocity;};
-    const Eigen::Vector3f getDesiredAcceleration() {return _desiredAcceleration;};
-    float getDesiredYaw() {return _desiredYaw;};
+    const Eigen::Vector3f getDesiredPosition() {return _desiredState.position;};
+    const Eigen::Vector3f getDesiredVelocity() {return _desiredState.velocity;};
+    const Eigen::Vector3f getDesiredAcceleration() {return _desiredState.acceleration;};
+    float getDesiredYaw() {return _desiredState.yaw;};
+    state getDesiredState() {return _desiredState;};
     bool isRunning() {return _isRunning;};
     const Eigen::Array<float, 12, Eigen::Dynamic> getWaypoints() {return _waypoints;};
     const Eigen::Array<float, Eigen::Dynamic,1> getTimeTo() {return _timeTo;};

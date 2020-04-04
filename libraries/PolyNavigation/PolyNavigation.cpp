@@ -224,10 +224,10 @@ bool PolyNavigation::updateTrajectory(){
         desTrajz = axisDesiredTrajectory(this->_map_az.row(index),time,ti,this->_endTime(index));
         desTrajyaw = axisDesiredTrajectory(this->_map_ayaw.row(index),time,ti,this->_endTime(index));
 
-        this->_desiredPosition << desTrajx(0),desTrajy(0),desTrajz(0);
-        this->_desiredVelocity << desTrajx(1),desTrajy(1),desTrajz(1);
-        this->_desiredAcceleration << desTrajx(2),desTrajy(2),desTrajz(2);
-        this->_desiredYaw = desTrajyaw(0);
+        this->_desiredState.position << desTrajx(0),desTrajy(0),desTrajz(0);
+        this->_desiredState.velocity << desTrajx(1),desTrajy(1),desTrajz(1);
+        this->_desiredState.acceleration << desTrajx(2),desTrajy(2),desTrajz(2);
+        this->_desiredState.yaw = desTrajyaw(0);
 
         return true;
     }
