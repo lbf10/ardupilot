@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AP_Math/AP_Math.h>
+#include <PolyNavigation/PolyNavigation.h>
 #include </usr/include/eigen3/Eigen/Eigen>
 #include <cmath>
 #include <string>
@@ -59,6 +60,11 @@
 #define ROTOR7_DIRECTION_DEFAULT -1
 #define ROTOR8_DIRECTION_DEFAULT 1
 
+
+//////////////////////////////////////
+/* General variables default values */
+#define VELOCITY_FILTER_GAIN_DEFAULT (0.0, 0.0, 0.9)
+
 ////////////////////////////////////////////////
 /* Position PIDD configuration default values */
 #define PIDD_KP_DEFAULT (1.0, 1.0, 1.0)
@@ -69,8 +75,55 @@
 class MultiControl
 {
 private:
-    /* data */
-    Eigen::Matrix3f 
+    ///////////////////////////////////////////
+    /* Variables to define on initialization */
+
+    //General
+    Eigen::Matrix<float, 3, Eigen::Dynamic> _Mf; // Matrix of forces calculated from rotor positions
+    Eigen::Matrix<float, 3, Eigen::Dynamic> _Mt; // Matrix of torques calculated from rotor positions and torques
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> _nullMt; // Null-space of Mt
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> _attRefAux; //Auxiliary variable for attitude reference calculation. Calculated on init to reduce computation time
+    Eigen::Matrix3f _inertia; // body inertia matrix
+    Eigen::Matrix3f _inertiaInv; // Inverse inertia matrix
+
+    // FT-LQR related
+    struct ftlqrRelatedConst {
+        Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> C;
+    } _ftLQRConst;     
+
+    /////////////////////////////////////////
+    /* Variables updated at each iteration */
+
+    // Desired state
+    Eigen::Vector3f _desiredPosition;
+    Eigen::Vector3f _desiredVelocity;
+    Eigen::Vector3f _desiredAcceleration;
+    float _desiredYaw;
+    Eigen::Quaternionf _desiredAttitude;
+
+    // Current state
+    Eigen::Vector3f _currentPosition;
+    Eigen::Vector3f _currentVelocity;
+    Eigen::Vector3f _currentAcceleration;
+    Eigen::Quaternionf _currentAttitude;
+    Eigen::Vector3f _currentAngularVelocity;
+    Eigen::Matrix<float, Eigen::Dynamic, 1> _currentRotorSpeeds;
+
+    // Auxiliary variables
+    Eigen::Vector3f _desiredForce;
+    Eigen::Quaternionf _quaternionError;
+    struct velFilter
+    {
+        Eigen::Vector3f Wbe;
+        Eigen::Vector3f angularVelocity;
+        Eigen::Vector3f desiredAngularVelocity;
+    } _velocityFilter;
+
+    // FT-LQR related
+    struct ftlqrRelated {
+        Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> P;
+    } _ftLQR;
+
     /* members */
 
 public:
@@ -136,6 +189,10 @@ protected:
     AP_Int8 _rotor6Direction;
     AP_Int8 _rotor7Direction;
     AP_Int8 _rotor8Direction;
+
+    ///////////////////////
+    /* General variables */
+    AP_Vector3f _velocityFilterGain;
 
     ////////////////////////////////
     /* Position PIDD configuration */

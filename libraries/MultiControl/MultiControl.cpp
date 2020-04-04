@@ -375,5 +375,12 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("PIDD_KDD", 44, MultiControl, _piddKdd, PIDD_KDD_DEFAULT),
 
+    // @Param: FLTR_GAIN
+    // @DisplayName: Angular velocity filter gain
+    // @Description: Gain for the filter of the angular velocity 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FLTR_GAIN", 45, MultiControl, _velocityFilterGain, VELOCITY_FILTER_GAIN_DEFAULT),
+
     AP_GROUPEND
 };
