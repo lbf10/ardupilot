@@ -48,7 +48,13 @@ bool MultiControl::init(AP_AHRS &ahrs_other){
     this->_nullMt = svd.matrixV();
 
     // Calculates attRefAux
+    Eigen::MatrixXd auxAtt(this->_nullMt.cols(),this->_nullMt.cols());
+    this->_attRefAux.resize(this->_nullMt.cols(),this->_nullMt.rows());
+    auxAtt = this->_nullMt.transpose()*(((double)this->_caConfig.Wm)*this->_nullMt+this->_Mf.transpose()*((double)this->_caConfig.Wa)*this->_Mf*this->_nullMt);
+    this->_attRefAux = auxAtt.colPivHouseholderQr().solve(this->_nullMt.transpose());
 
+
+    //(N'*(R*N+Mf'*Q*Mf*N))\(N'*
     // Groups inertia values
     Vector3f mI = this->_momentsOfInertia;
     Vector3f pI = this->_productsOfInertia;
@@ -61,11 +67,18 @@ bool MultiControl::init(AP_AHRS &ahrs_other){
     /* FT-LQR related */
 
     // Calculates C
+    this->_ftLQRConst.C.resize(3, this->_numberOfRotors);
     this->_ftLQRConst.C = -this->_inertia.inverse()*this->_Mt;
 };
 
 bool MultiControl::updateStates(PolyNavigation::state desiredState){
+    // Update desired states from navigation
+    this->_desiredPosition << (double)desiredState.position.x, (double)desiredState.position.y, (double)desiredState.position.z;
+    this->_desiredVelocity << (double)desiredState.velocity.x, (double)desiredState.velocity.y, (double)desiredState.velocity.z;
+    this->_desiredAcceleration << (double)desiredState.acceleration.x, (double)desiredState.acceleration.y, (double)desiredState.acceleration.z;
+    this->_desiredYaw = (double) desiredState.yaw;
 
+    // Update current states from AHRS
 };
 
 bool MultiControl::positionControl(){
@@ -752,6 +765,20 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Range: -3.4E+38 3.4E+38
     // @User: Advanced
     AP_GROUPINFO("FTLQR_ALP", 87, MultiControl, _ftlqrConfig.alpha, FTLQR_CONFIG_ALPHA_DEFAULT),
+    
+    // @Param: CA_WM
+    // @DisplayName: Control allocation maneuverability weight
+    // @Description: Weight to ponderate maneuverability over attitude following for control allocation algorithm
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("CA_WM", 88, MultiControl, _caConfig.Wm, CA_WM_DEFAULT),
+    
+    // @Param: CA_WA
+    // @DisplayName: Control allocation attitude following weight
+    // @Description: Weight to ponderate attitude following over maneuverability for control allocation algorithm
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("CA_WA", 89, MultiControl, _caConfig.Wa, CA_WA_DEFAULT),
 
     AP_GROUPEND
 };

@@ -124,6 +124,11 @@
 #define FTLQR_CONFIG_MU_DEFAULT 0.0
 #define FTLQR_CONFIG_ALPHA_DEFAULT 0.0
 
+//////////////////////////////////////////////////////////////////
+/* Passive NMAC Control allocation configuration default values */
+#define CA_WM_DEFAULT 1.0
+#define CA_WA_DEFAULT 0.0
+
 class MultiControl
 {
 private:
@@ -250,8 +255,13 @@ protected:
         AP_Float mu;
         AP_Float alpha;  
     } _ftlqrConfig;
-
-
+    
+    ///////////////////////////////////////////////////
+    /* Passive NMAC Control allocation configuration */
+    struct caConfig {
+        AP_Float Wm;
+        AP_Float Wa;
+    } _caConfig;
     
 };
  
