@@ -1,12 +1,89 @@
 # include "MultiControl.h"
 
-MultiControl::MultiControl(/* args */)
+MultiControl::MultiControl()
 {
 }
 
 MultiControl::~MultiControl()
 {
 }
+
+    // Members
+bool MultiControl::init(AP_AHRS &ahrs_other){
+    ///////////////////////
+    /* Generic variables */
+
+    // Links AHRS objects
+    this->ahrs = ahrs_other;
+
+    // Calculates Mf and Mt
+    this->_Mf.resize(3,this->_numberOfRotors);
+    this->_Mt.resize(3,this->_numberOfRotors);
+    this->_pinvMt.resize(this->_numberOfRotors,3);
+
+    double liftCoeff = (double) this->_rotorLiftCoeff;
+    double dragCoeff = (double) this->_rotorDragCoeff;
+    Eigen::Vector3d rotorPosition;
+    Eigen::Vector3d rotorOrientation;
+    Eigen::Vector3d rotorDirection;
+    Vector3f aux;
+
+    for(int it=0;it<this->_numberOfRotors;it++){
+        aux = this->_rotorPosition[it];
+        rotorPosition << (double) aux.x, (double) aux.y, (double) aux.z;
+        this->_Mf.col(it) = liftCoeff*rotorPosition;
+        aux = this->_rotorOrientation[it];
+        rotorOrientation << (double) aux.x, (double) aux.y, (double) aux.z;
+        this->_Mt.col(it) = liftCoeff*rotorPosition.cross(rotorOrientation)-dragCoeff*((float) this->_rotorDirection[it])*rotorOrientation;
+    }
+
+    // Calculates pseudo-inverse of Mt
+    this->_pinvMt = this->_Mt.completeOrthogonalDecomposition().pseudoInverse();
+
+    // Calculates nullMt
+    /* Do a singular value decomposition on the matrix */
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(this->_Mt, Eigen::ComputeFullV);
+    /* Get the V matrix */
+    this->_nullMt.resize((int)svd.matrixV().rows(), (int)svd.matrixV().cols());
+    this->_nullMt = svd.matrixV();
+
+    // Calculates attRefAux
+
+    // Groups inertia values
+    Vector3f mI = this->_momentsOfInertia;
+    Vector3f pI = this->_productsOfInertia;
+    this->_inertia << (double) mI.x, (double) pI.x, (double) pI.y,
+                      (double) pI.x, (double) mI.y, (double) pI.z,
+                      (double) pI.y, (double) pI.z, (double) mI.z;    
+
+
+    ////////////////////
+    /* FT-LQR related */
+
+    // Calculates C
+    this->_ftLQRConst.C = -this->_inertia.inverse()*this->_Mt;
+};
+
+bool MultiControl::updateStates(PolyNavigation::state desiredState){
+
+};
+
+bool MultiControl::positionControl(){
+
+};
+
+bool MultiControl::attitudeReference(){
+
+};
+
+bool MultiControl::attitudeFTLQRControl(){
+
+};
+
+bool MultiControl::controlAllocation(){
+
+};
+
 
 const AP_Param::GroupInfo MultiControl::var_info[] = {
     ////////////////////////////////
@@ -154,7 +231,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Range: -3.4E+38 3.4E+38
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT1_POS", 17, MultiControl, _rotor1Position, ROTOR1_POSITION_DEFAULT),
+    AP_GROUPINFO("ROT1_POS", 17, MultiControl, _rotorPosition[0], ROTOR1_POSITION_DEFAULT),
 
     // @Param: ROT2_POS
     // @DisplayName: Rotor 2 position
@@ -162,7 +239,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Range: -3.4E+38 3.4E+38
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT2_POS", 18, MultiControl, _rotor2Position, ROTOR2_POSITION_DEFAULT),
+    AP_GROUPINFO("ROT2_POS", 18, MultiControl,  _rotorPosition[1], ROTOR2_POSITION_DEFAULT),
 
     // @Param: ROT3_POS
     // @DisplayName: Rotor 3 position
@@ -170,7 +247,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Range: -3.4E+38 3.4E+38
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT3_POS", 19, MultiControl, _rotor3Position, ROTOR3_POSITION_DEFAULT),
+    AP_GROUPINFO("ROT3_POS", 19, MultiControl,  _rotorPosition[2], ROTOR3_POSITION_DEFAULT),
 
     // @Param: ROT4_POS
     // @DisplayName: Rotor 4 position
@@ -178,7 +255,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Range: -3.4E+38 3.4E+38
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT4_POS", 20, MultiControl, _rotor4Position, ROTOR4_POSITION_DEFAULT),
+    AP_GROUPINFO("ROT4_POS", 20, MultiControl,  _rotorPosition[3], ROTOR4_POSITION_DEFAULT),
 
     // @Param: ROT5_POS
     // @DisplayName: Rotor 5 position
@@ -186,7 +263,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Range: -3.4E+38 3.4E+38
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT5_POS", 21, MultiControl, _rotor5Position, ROTOR5_POSITION_DEFAULT),
+    AP_GROUPINFO("ROT5_POS", 21, MultiControl,  _rotorPosition[4], ROTOR5_POSITION_DEFAULT),
 
     // @Param: ROT6_POS
     // @DisplayName: Rotor 6 position
@@ -194,7 +271,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Range: -3.4E+38 3.4E+38
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT6_POS", 22, MultiControl, _rotor6Position, ROTOR6_POSITION_DEFAULT),
+    AP_GROUPINFO("ROT6_POS", 22, MultiControl,  _rotorPosition[5], ROTOR6_POSITION_DEFAULT),
 
     // @Param: ROT7_POS
     // @DisplayName: Rotor 7 position
@@ -202,7 +279,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Range: -3.4E+38 3.4E+38
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT7_POS", 23, MultiControl, _rotor7Position, ROTOR7_POSITION_DEFAULT),
+    AP_GROUPINFO("ROT7_POS", 23, MultiControl,  _rotorPosition[6], ROTOR7_POSITION_DEFAULT),
 
     // @Param: ROT8_POS
     // @DisplayName: Rotor 8 position
@@ -210,7 +287,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Range: -3.4E+38 3.4E+38
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT8_POS", 24, MultiControl, _rotor8Position, ROTOR8_POSITION_DEFAULT),
+    AP_GROUPINFO("ROT8_POS", 24, MultiControl,  _rotorPosition[7], ROTOR8_POSITION_DEFAULT),
 
     // @Param: ROT1_ORI
     // @DisplayName: Rotor 1 orientation
@@ -218,7 +295,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Range: -3.4E+38 3.4E+38
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT1_ORI", 25, MultiControl, _rotor1Orientation, ROTOR1_ORIENTATION_DEFAULT),
+    AP_GROUPINFO("ROT1_ORI", 25, MultiControl, _rotorOrientation[0], ROTOR1_ORIENTATION_DEFAULT),
 
     // @Param: ROT2_ORI
     // @DisplayName: Rotor 2 orientation
@@ -226,7 +303,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Range: -3.4E+38 3.4E+38
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT2_ORI", 26, MultiControl, _rotor2Orientation, ROTOR2_ORIENTATION_DEFAULT),
+    AP_GROUPINFO("ROT2_ORI", 26, MultiControl, _rotorOrientation[1], ROTOR2_ORIENTATION_DEFAULT),
 
     // @Param: ROT3_ORI
     // @DisplayName: Rotor 3 orientation
@@ -234,7 +311,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Range: -3.4E+38 3.4E+38
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT3_ORI", 27, MultiControl, _rotor3Orientation, ROTOR3_ORIENTATION_DEFAULT),
+    AP_GROUPINFO("ROT3_ORI", 27, MultiControl, _rotorOrientation[2], ROTOR3_ORIENTATION_DEFAULT),
 
     // @Param: ROT4_ORI
     // @DisplayName: Rotor 4 orientation
@@ -242,7 +319,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Range: -3.4E+38 3.4E+38
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT4_ORI", 28, MultiControl, _rotor4Orientation, ROTOR4_ORIENTATION_DEFAULT),
+    AP_GROUPINFO("ROT4_ORI", 28, MultiControl, _rotorOrientation[3], ROTOR4_ORIENTATION_DEFAULT),
 
     // @Param: ROT5_ORI
     // @DisplayName: Rotor 5 orientation
@@ -250,7 +327,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Range: -3.4E+38 3.4E+38
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT5_ORI", 29, MultiControl, _rotor5Orientation, ROTOR5_ORIENTATION_DEFAULT),
+    AP_GROUPINFO("ROT5_ORI", 29, MultiControl, _rotorOrientation[4], ROTOR5_ORIENTATION_DEFAULT),
 
     // @Param: ROT6_ORI
     // @DisplayName: Rotor 6 orientation
@@ -258,7 +335,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Range: -3.4E+38 3.4E+38
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT6_ORI", 30, MultiControl, _rotor6Orientation, ROTOR6_ORIENTATION_DEFAULT),
+    AP_GROUPINFO("ROT6_ORI", 30, MultiControl, _rotorOrientation[5], ROTOR6_ORIENTATION_DEFAULT),
 
     // @Param: ROT7_ORI
     // @DisplayName: Rotor 7 orientation
@@ -266,7 +343,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Range: -3.4E+38 3.4E+38
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT7_ORI", 31, MultiControl, _rotor7Orientation, ROTOR7_ORIENTATION_DEFAULT),
+    AP_GROUPINFO("ROT7_ORI", 31, MultiControl, _rotorOrientation[6], ROTOR7_ORIENTATION_DEFAULT),
 
     // @Param: ROT8_ORI
     // @DisplayName: Rotor 8 orientation
@@ -274,7 +351,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Range: -3.4E+38 3.4E+38
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT8_ORI", 32, MultiControl, _rotor8Orientation, ROTOR8_ORIENTATION_DEFAULT),
+    AP_GROUPINFO("ROT8_ORI", 32, MultiControl, _rotorOrientation[7], ROTOR8_ORIENTATION_DEFAULT),
 
     // @Param: ROT1_DIR
     // @DisplayName: Rotor 1 rotation direction
@@ -282,7 +359,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Values: -1:CW,1:CCW
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT1_DIR", 33, MultiControl, _rotor1Direction, ROTOR1_DIRECTION_DEFAULT),
+    AP_GROUPINFO("ROT1_DIR", 33, MultiControl, _rotorDirection[0], ROTOR1_DIRECTION_DEFAULT),
 
     // @Param: ROT2_DIR
     // @DisplayName: Rotor 2 rotation direction
@@ -290,7 +367,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Values: -1:CW,1:CCW
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT2_DIR", 34, MultiControl, _rotor2Direction, ROTOR2_DIRECTION_DEFAULT),
+    AP_GROUPINFO("ROT2_DIR", 34, MultiControl, _rotorDirection[1], ROTOR2_DIRECTION_DEFAULT),
 
     // @Param: ROT3_DIR
     // @DisplayName: Rotor 3 rotation direction
@@ -298,7 +375,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Values: -1:CW,1:CCW
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT3_DIR", 35, MultiControl, _rotor3Direction, ROTOR3_DIRECTION_DEFAULT),
+    AP_GROUPINFO("ROT3_DIR", 35, MultiControl, _rotorDirection[2], ROTOR3_DIRECTION_DEFAULT),
 
     // @Param: ROT4_DIR
     // @DisplayName: Rotor 4 rotation direction
@@ -306,7 +383,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Values: -1:CW,1:CCW
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT4_DIR", 36, MultiControl, _rotor4Direction, ROTOR4_DIRECTION_DEFAULT),
+    AP_GROUPINFO("ROT4_DIR", 36, MultiControl, _rotorDirection[3], ROTOR4_DIRECTION_DEFAULT),
 
     // @Param: ROT5_DIR
     // @DisplayName: Rotor 5 rotation direction
@@ -314,7 +391,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Values: -1:CW,1:CCW
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT5_DIR", 37, MultiControl, _rotor5Direction, ROTOR5_DIRECTION_DEFAULT),
+    AP_GROUPINFO("ROT5_DIR", 37, MultiControl, _rotorDirection[4], ROTOR5_DIRECTION_DEFAULT),
 
     // @Param: ROT6_DIR
     // @DisplayName: Rotor 6 rotation direction
@@ -322,7 +399,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Values: -1:CW,1:CCW
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT6_DIR", 38, MultiControl, _rotor6Direction, ROTOR6_DIRECTION_DEFAULT),
+    AP_GROUPINFO("ROT6_DIR", 38, MultiControl, _rotorDirection[5], ROTOR6_DIRECTION_DEFAULT),
 
     // @Param: ROT7_DIR
     // @DisplayName: Rotor 7 rotation direction
@@ -330,7 +407,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Values: -1:CW,1:CCW
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT7_DIR", 39, MultiControl, _rotor7Direction, ROTOR7_DIRECTION_DEFAULT),
+    AP_GROUPINFO("ROT7_DIR", 39, MultiControl, _rotorDirection[6], ROTOR7_DIRECTION_DEFAULT),
 
     // @Param: ROT8_DIR
     // @DisplayName: Rotor 8 rotation direction
@@ -338,7 +415,7 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Values: -1:CW,1:CCW
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("ROT8_DIR", 40, MultiControl, _rotor8Direction, ROTOR8_DIRECTION_DEFAULT),
+    AP_GROUPINFO("ROT8_DIR", 40, MultiControl, _rotorDirection[7], ROTOR8_DIRECTION_DEFAULT),
 
     ////////////////////////////////
     /* Position PIDD configuration */
@@ -381,6 +458,300 @@ const AP_Param::GroupInfo MultiControl::var_info[] = {
     // @Range: -3.4E+38 3.4E+38
     // @User: Advanced
     AP_GROUPINFO("FLTR_GAIN", 45, MultiControl, _velocityFilterGain, VELOCITY_FILTER_GAIN_DEFAULT),
+
+    // @Param: FTLQR_P11
+    // @DisplayName: FT-LQR controller P matrix (1,1)
+    // @Description: Element (1,1) of FT-LQR controller Ricatti matrix (P) 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_P11", 46, MultiControl, _ftlqrConfig.P[0], FTLQR_CONFIG_P11_DEFAULT),
+
+    // @Param: FTLQR_P22
+    // @DisplayName: FT-LQR controller P matrix (2,2)
+    // @Description: Element (2,2) of FT-LQR controller Ricatti matrix (P) 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_P22", 47, MultiControl, _ftlqrConfig.P[1], FTLQR_CONFIG_P22_DEFAULT),
+
+    // @Param: FTLQR_P33
+    // @DisplayName: FT-LQR controller P matrix (3,3)
+    // @Description: Element (3,3) of FT-LQR controller Ricatti matrix (P) 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_P33", 48, MultiControl, _ftlqrConfig.P[2], FTLQR_CONFIG_P33_DEFAULT),
+
+    // @Param: FTLQR_P44
+    // @DisplayName: FT-LQR controller P matrix (4,4)
+    // @Description: Element (4,4) of FT-LQR controller Ricatti matrix (P) 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_P44", 49, MultiControl, _ftlqrConfig.P[3], FTLQR_CONFIG_P44_DEFAULT),
+
+    // @Param: FTLQR_P55
+    // @DisplayName: FT-LQR controller P matrix (5,5)
+    // @Description: Element (5,5) of FT-LQR controller Ricatti matrix (P) 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_P55", 50, MultiControl, _ftlqrConfig.P[4], FTLQR_CONFIG_P55_DEFAULT),
+
+    // @Param: FTLQR_P66
+    // @DisplayName: FT-LQR controller P matrix (6,6)
+    // @Description: Element (6,6) of FT-LQR controller Ricatti matrix (P) 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_P66", 51, MultiControl, _ftlqrConfig.P[5], FTLQR_CONFIG_P66_DEFAULT),
+
+    // @Param: FTLQR_Q11
+    // @DisplayName: FT-LQR controller Q matrix (1,1)
+    // @Description: Element (1,1) of FT-LQR controller state matrix Q 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_Q11", 52, MultiControl, _ftlqrConfig.Q[0], FTLQR_CONFIG_Q11_DEFAULT),
+
+    // @Param: FTLQR_Q22
+    // @DisplayName: FT-LQR controller Q matrix (2,2)
+    // @Description: Element (2,2) of FT-LQR controller state matrix Q 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_Q22", 53, MultiControl, _ftlqrConfig.Q[1], FTLQR_CONFIG_Q22_DEFAULT),
+
+    // @Param: FTLQR_Q33
+    // @DisplayName: FT-LQR controller Q matrix (3,3)
+    // @Description: Element (3,3) of FT-LQR controller state matrix Q 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_Q33", 54, MultiControl, _ftlqrConfig.Q[2], FTLQR_CONFIG_Q33_DEFAULT),
+
+    // @Param: FTLQR_Q44
+    // @DisplayName: FT-LQR controller Q matrix (4,4)
+    // @Description: Element (4,4) of FT-LQR controller state matrix Q 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_Q44", 55, MultiControl, _ftlqrConfig.Q[3], FTLQR_CONFIG_Q44_DEFAULT),
+
+    // @Param: FTLQR_Q55
+    // @DisplayName: FT-LQR controller Q matrix (5,5)
+    // @Description: Element (5,5) of FT-LQR controller state matrix Q 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_Q55", 56, MultiControl, _ftlqrConfig.Q[4], FTLQR_CONFIG_Q55_DEFAULT),
+
+    // @Param: FTLQR_Q66
+    // @DisplayName: FT-LQR controller Q matrix (6,6)
+    // @Description: Element (6,6) of FT-LQR controller state matrix Q 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_Q66", 57, MultiControl, _ftlqrConfig.Q[5], FTLQR_CONFIG_Q66_DEFAULT),
+
+    // @Param: FTLQR_R11
+    // @DisplayName: FT-LQR controller R matrix (1,1)
+    // @Description: Element (1,1) of FT-LQR controller input matrix R 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_R11", 58, MultiControl, _ftlqrConfig.R[0], FTLQR_CONFIG_R11_DEFAULT),
+
+    // @Param: FTLQR_R22
+    // @DisplayName: FT-LQR controller R matrix (2,2)
+    // @Description: Element (2,2) of FT-LQR controller input matrix R 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_R22", 59, MultiControl, _ftlqrConfig.R[1], FTLQR_CONFIG_R22_DEFAULT),
+
+    // @Param: FTLQR_R33
+    // @DisplayName: FT-LQR controller R matrix (3,3)
+    // @Description: Element (3,3) of FT-LQR controller input matrix R 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_R33", 60, MultiControl, _ftlqrConfig.R[2], FTLQR_CONFIG_R33_DEFAULT),
+
+    // @Param: FTLQR_R44
+    // @DisplayName: FT-LQR controller R matrix (4,4)
+    // @Description: Element (4,4) of FT-LQR controller input matrix R 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_R44", 61, MultiControl, _ftlqrConfig.R[3], FTLQR_CONFIG_R44_DEFAULT),
+
+    // @Param: FTLQR_R55
+    // @DisplayName: FT-LQR controller R matrix (5,5)
+    // @Description: Element (5,5) of FT-LQR controller input matrix R 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_R55", 62, MultiControl, _ftlqrConfig.R[4], FTLQR_CONFIG_R55_DEFAULT),
+
+    // @Param: FTLQR_R66
+    // @DisplayName: FT-LQR controller R matrix (6,6)
+    // @Description: Element (6,6) of FT-LQR controller input matrix R 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_R66", 63, MultiControl, _ftlqrConfig.R[5], FTLQR_CONFIG_R66_DEFAULT),
+
+    // @Param: FTLQR_R77
+    // @DisplayName: FT-LQR controller R matrix (7,7)
+    // @Description: Element (7,7) of FT-LQR controller input matrix R 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_R77", 64, MultiControl, _ftlqrConfig.R[6], FTLQR_CONFIG_R77_DEFAULT),
+
+    // @Param: FTLQR_R88
+    // @DisplayName: FT-LQR controller R matrix (8,8)
+    // @Description: Element (8,8) of FT-LQR controller input matrix R 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_R88", 65, MultiControl, _ftlqrConfig.R[7], FTLQR_CONFIG_R88_DEFAULT),
+
+    // @Param: FTLQR_Ef1
+    // @DisplayName: FT-LQR controller Ef matrix (1)
+    // @Description: Element (1) of FT-LQR controller error uncertainty matrix Ef 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_Ef1", 66, MultiControl, _ftlqrConfig.Ef[0], FTLQR_CONFIG_EF1_DEFAULT),
+
+    // @Param: FTLQR_Ef2
+    // @DisplayName: FT-LQR controller Ef matrix (2)
+    // @Description: Element (2) of FT-LQR controller error uncertainty matrix Ef 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_Ef2", 67, MultiControl, _ftlqrConfig.Ef[1], FTLQR_CONFIG_EF2_DEFAULT),
+
+    // @Param: FTLQR_Ef3
+    // @DisplayName: FT-LQR controller Ef matrix (3)
+    // @Description: Element (3) of FT-LQR controller error uncertainty matrix Ef 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_Ef3", 68, MultiControl, _ftlqrConfig.Ef[2], FTLQR_CONFIG_EF3_DEFAULT),
+
+    // @Param: FTLQR_Ef4
+    // @DisplayName: FT-LQR controller Ef matrix (4)
+    // @Description: Element (4) of FT-LQR controller error uncertainty matrix Ef 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_Ef4", 69, MultiControl, _ftlqrConfig.Ef[3], FTLQR_CONFIG_EF4_DEFAULT),
+
+    // @Param: FTLQR_Ef5
+    // @DisplayName: FT-LQR controller Ef matrix (5)
+    // @Description: Element (5) of FT-LQR controller error uncertainty matrix Ef 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_Ef5", 70, MultiControl, _ftlqrConfig.Ef[4], FTLQR_CONFIG_EF5_DEFAULT),
+
+    // @Param: FTLQR_Ef6
+    // @DisplayName: FT-LQR controller Ef matrix (6)
+    // @Description: Element (6) of FT-LQR controller error uncertainty matrix Ef 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_Ef6", 71, MultiControl, _ftlqrConfig.Ef[5], FTLQR_CONFIG_EF6_DEFAULT),
+
+    // @Param: FTLQR_Eg1
+    // @DisplayName: FT-LQR controller Eg matrix (1)
+    // @Description: Element (1) of FT-LQR controller error uncertainty matrix Eg 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_Eg1", 72, MultiControl, _ftlqrConfig.Eg[0], FTLQR_CONFIG_EG1_DEFAULT),
+
+    // @Param: FTLQR_Eg2
+    // @DisplayName: FT-LQR controller Eg matrix (2)
+    // @Description: Element (2) of FT-LQR controller error uncertainty matrix Eg 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_Eg2", 73, MultiControl, _ftlqrConfig.Eg[1], FTLQR_CONFIG_EG2_DEFAULT),
+
+    // @Param: FTLQR_Eg3
+    // @DisplayName: FT-LQR controller Eg matrix (3)
+    // @Description: Element (3) of FT-LQR controller error uncertainty matrix Eg 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_Eg3", 74, MultiControl, _ftlqrConfig.Eg[2], FTLQR_CONFIG_EG3_DEFAULT),
+
+    // @Param: FTLQR_Eg4
+    // @DisplayName: FT-LQR controller Eg matrix (4)
+    // @Description: Element (4) of FT-LQR controller error uncertainty matrix Eg 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_Eg4", 75, MultiControl, _ftlqrConfig.Eg[3], FTLQR_CONFIG_EG4_DEFAULT),
+
+    // @Param: FTLQR_Eg5
+    // @DisplayName: FT-LQR controller Eg matrix (5)
+    // @Description: Element (5) of FT-LQR controller error uncertainty matrix Eg 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_Eg5", 76, MultiControl, _ftlqrConfig.Eg[4], FTLQR_CONFIG_EG5_DEFAULT),
+
+    // @Param: FTLQR_Eg6
+    // @DisplayName: FT-LQR controller Eg matrix (6)
+    // @Description: Element (6) of FT-LQR controller error uncertainty matrix Eg 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_Eg6", 77, MultiControl, _ftlqrConfig.Eg[5], FTLQR_CONFIG_EG6_DEFAULT),
+
+    // @Param: FTLQR_Eg7
+    // @DisplayName: FT-LQR controller Eg matrix (7)
+    // @Description: Element (7) of FT-LQR controller error uncertainty matrix Eg 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_Eg7", 78, MultiControl, _ftlqrConfig.Eg[6], FTLQR_CONFIG_EG7_DEFAULT),
+
+    // @Param: FTLQR_Eg8
+    // @DisplayName: FT-LQR controller Eg matrix (8)
+    // @Description: Element (8) of FT-LQR controller error uncertainty matrix Eg 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_Eg8", 79, MultiControl, _ftlqrConfig.Eg[7], FTLQR_CONFIG_EG8_DEFAULT),
+
+    // @Param: FTLQR_H1
+    // @DisplayName: FT-LQR controller H matrix (1)
+    // @Description: Element (1) of FT-LQR controller error uncertainty matrix H 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_H1", 80, MultiControl, _ftlqrConfig.H[0], FTLQR_CONFIG_H1_DEFAULT),
+
+    // @Param: FTLQR_H2
+    // @DisplayName: FT-LQR controller H matrix (2)
+    // @Description: Element (2) of FT-LQR controller error uncertainty matrix H 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_H2", 81, MultiControl, _ftlqrConfig.H[1], FTLQR_CONFIG_H2_DEFAULT),
+
+    // @Param: FTLQR_H3
+    // @DisplayName: FT-LQR controller H matrix (3)
+    // @Description: Element (3) of FT-LQR controller error uncertainty matrix H 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_H3", 82, MultiControl, _ftlqrConfig.H[2], FTLQR_CONFIG_H3_DEFAULT),
+
+    // @Param: FTLQR_H4
+    // @DisplayName: FT-LQR controller H matrix (4)
+    // @Description: Element (4) of FT-LQR controller error uncertainty matrix H 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_H4", 83, MultiControl, _ftlqrConfig.H[3], FTLQR_CONFIG_H4_DEFAULT),
+
+    // @Param: FTLQR_H5
+    // @DisplayName: FT-LQR controller H matrix (5)
+    // @Description: Element (5) of FT-LQR controller error uncertainty matrix H 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_H5", 84, MultiControl, _ftlqrConfig.H[4], FTLQR_CONFIG_H5_DEFAULT),
+
+    // @Param: FTLQR_H6
+    // @DisplayName: FT-LQR controller H matrix (6)
+    // @Description: Element (6) of FT-LQR controller error uncertainty matrix H 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_H6", 85, MultiControl, _ftlqrConfig.H[5], FTLQR_CONFIG_H6_DEFAULT),
+
+    // @Param: FTLQR_MU
+    // @DisplayName: FT-LQR controller mu value
+    // @Description: Mu value of FT-LQR controller 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_MU", 86, MultiControl, _ftlqrConfig.mu, FTLQR_CONFIG_MU_DEFAULT),
+
+    // @Param: FTLQR_ALP
+    // @DisplayName: FT-LQR controller alpha value
+    // @Description: Alpha value of FT-LQR controller 
+    // @Range: -3.4E+38 3.4E+38
+    // @User: Advanced
+    AP_GROUPINFO("FTLQR_ALP", 87, MultiControl, _ftlqrConfig.alpha, FTLQR_CONFIG_ALPHA_DEFAULT),
 
     AP_GROUPEND
 };

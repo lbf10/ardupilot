@@ -17,6 +17,16 @@ enum yawType {rot360,goTo};
 
 class PolyNavigation
 {
+public:
+
+    struct state
+    {
+        Eigen::Vector3f position;
+        Eigen::Vector3f velocity;
+        Eigen::Vector3f acceleration;
+        float yaw;
+    };
+
 private:
     /* data */
     // Trajectory matrices
@@ -27,13 +37,7 @@ private:
     Eigen::Array<float, Eigen::Dynamic, 1> _endTime;
 
     // Last desired values
-    struct state
-    {
-        Eigen::Vector3f position;
-        Eigen::Vector3f velocity;
-        Eigen::Vector3f acceleration;
-        float yaw;
-    } _desiredState;
+    state _desiredState;
 
     //Other
     Eigen::Array<float, 12, Eigen::Dynamic> _waypoints;  // Waypoints

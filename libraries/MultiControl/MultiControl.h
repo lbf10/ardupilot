@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AP_Math/AP_Math.h>
+#include <AP_AHRS/AP_AHRS.h>
 #include <PolyNavigation/PolyNavigation.h>
 #include </usr/include/eigen3/Eigen/Eigen>
 #include <cmath>
@@ -72,34 +73,86 @@
 #define PIDD_KD_DEFAULT (1.0, 1.0, 1.0)
 #define PIDD_KDD_DEFAULT (1.0, 1.0, 1.0)
 
+/////////////////////////////////////////
+/* FT-LQR configuration default values */
+#define FTLQR_CONFIG_P11_DEFAULT 0.0
+#define FTLQR_CONFIG_P22_DEFAULT 0.0
+#define FTLQR_CONFIG_P33_DEFAULT 0.0
+#define FTLQR_CONFIG_P44_DEFAULT 0.0
+#define FTLQR_CONFIG_P55_DEFAULT 0.0
+#define FTLQR_CONFIG_P66_DEFAULT 0.0
+
+#define FTLQR_CONFIG_Q11_DEFAULT 0.0
+#define FTLQR_CONFIG_Q22_DEFAULT 0.0
+#define FTLQR_CONFIG_Q33_DEFAULT 0.0
+#define FTLQR_CONFIG_Q44_DEFAULT 0.0
+#define FTLQR_CONFIG_Q55_DEFAULT 0.0
+#define FTLQR_CONFIG_Q66_DEFAULT 0.0
+
+#define FTLQR_CONFIG_R11_DEFAULT 0.0
+#define FTLQR_CONFIG_R22_DEFAULT 0.0
+#define FTLQR_CONFIG_R33_DEFAULT 0.0
+#define FTLQR_CONFIG_R44_DEFAULT 0.0
+#define FTLQR_CONFIG_R55_DEFAULT 0.0
+#define FTLQR_CONFIG_R66_DEFAULT 0.0
+#define FTLQR_CONFIG_R77_DEFAULT 0.0
+#define FTLQR_CONFIG_R88_DEFAULT 0.0
+
+#define FTLQR_CONFIG_EF1_DEFAULT 0.0
+#define FTLQR_CONFIG_EF2_DEFAULT 0.0
+#define FTLQR_CONFIG_EF3_DEFAULT 0.0
+#define FTLQR_CONFIG_EF4_DEFAULT 0.0
+#define FTLQR_CONFIG_EF5_DEFAULT 0.0
+#define FTLQR_CONFIG_EF6_DEFAULT 0.0
+
+#define FTLQR_CONFIG_EG1_DEFAULT 0.0
+#define FTLQR_CONFIG_EG2_DEFAULT 0.0
+#define FTLQR_CONFIG_EG3_DEFAULT 0.0
+#define FTLQR_CONFIG_EG4_DEFAULT 0.0
+#define FTLQR_CONFIG_EG5_DEFAULT 0.0
+#define FTLQR_CONFIG_EG6_DEFAULT 0.0
+#define FTLQR_CONFIG_EG7_DEFAULT 0.0
+#define FTLQR_CONFIG_EG8_DEFAULT 0.0
+
+#define FTLQR_CONFIG_H1_DEFAULT 0.0
+#define FTLQR_CONFIG_H2_DEFAULT 0.0
+#define FTLQR_CONFIG_H3_DEFAULT 0.0
+#define FTLQR_CONFIG_H4_DEFAULT 0.0
+#define FTLQR_CONFIG_H5_DEFAULT 0.0
+#define FTLQR_CONFIG_H6_DEFAULT 0.0
+
+#define FTLQR_CONFIG_MU_DEFAULT 0.0
+#define FTLQR_CONFIG_ALPHA_DEFAULT 0.0
+
 class MultiControl
 {
 private:
     ///////////////////////////////////////////
     /* Variables to define on initialization */
 
-    //General
-    Eigen::Matrix<float, 3, Eigen::Dynamic> _Mf; // Matrix of forces calculated from rotor positions
-    Eigen::Matrix<float, 3, Eigen::Dynamic> _Mt; // Matrix of torques calculated from rotor positions and torques
-    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> _nullMt; // Null-space of Mt
-    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> _attRefAux; //Auxiliary variable for attitude reference calculation. Calculated on init to reduce computation time
-    Eigen::Matrix3f _inertia; // body inertia matrix
-    Eigen::Matrix3f _inertiaInv; // Inverse inertia matrix
+    // Generic
+    AP_AHRS &ahrs();
+    Eigen::Matrix<double, 3, Eigen::Dynamic> _Mf; // Matrix of forces calculated from rotor positions
+    Eigen::Matrix<double, 3, Eigen::Dynamic> _Mt; // Matrix of torques calculated from rotor positions and torques
+    Eigen::Matrix<double, Eigen::Dynamic, 3> _pinvMt; // pseudo-inverse of Mt
+    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> _nullMt; // Null-space of Mt
+    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> _attRefAux; //Auxiliary variable for attitude reference calculation. Calculated on init to reduce computation time
+    Eigen::Matrix3d _inertia; // body inertia matrix
 
     // FT-LQR related
     struct ftlqrRelatedConst {
-        Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> C;
+        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> C;
     } _ftLQRConst;     
 
     /////////////////////////////////////////
     /* Variables updated at each iteration */
 
     // Desired state
-    Eigen::Vector3f _desiredPosition;
-    Eigen::Vector3f _desiredVelocity;
-    Eigen::Vector3f _desiredAcceleration;
-    float _desiredYaw;
-    Eigen::Quaternionf _desiredAttitude;
+    Eigen::Vector3d _desiredPosition;
+    Eigen::Vector3d _desiredVelocity;
+    Eigen::Vector3d _desiredAcceleration;
+    double _desiredYaw;
+    Eigen::Quaterniond _desiredAttitude;
 
     // Current state
     Eigen::Vector3f _currentPosition;
@@ -107,28 +160,28 @@ private:
     Eigen::Vector3f _currentAcceleration;
     Eigen::Quaternionf _currentAttitude;
     Eigen::Vector3f _currentAngularVelocity;
-    Eigen::Matrix<float, Eigen::Dynamic, 1> _currentRotorSpeeds;
+    Eigen::Matrix<double, Eigen::Dynamic, 1> _currentRotorSpeeds;
 
     // Auxiliary variables
-    Eigen::Vector3f _desiredForce;
-    Eigen::Quaternionf _quaternionError;
+    Eigen::Vector3d _desiredForce;
+    Eigen::Quaterniond _quaternionError;
     struct velFilter
     {
-        Eigen::Vector3f Wbe;
-        Eigen::Vector3f angularVelocity;
-        Eigen::Vector3f desiredAngularVelocity;
+        Eigen::Vector3d Wbe;
+        Eigen::Vector3d angularVelocity;
+        Eigen::Vector3d desiredAngularVelocity;
     } _velocityFilter;
 
     // FT-LQR related
     struct ftlqrRelated {
-        Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> P;
+        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> P;
     } _ftLQR;
 
     /* members */
 
 public:
     // Constructor
-    MultiControl(/* args */);
+    MultiControl();
     
     // Destructor
     ~MultiControl();
@@ -136,6 +189,12 @@ public:
     // Commands
 
     // Members
+    bool init(AP_AHRS &ahrs_other);
+    bool updateStates(PolyNavigation::state desiredState);
+    bool positionControl();
+    bool attitudeReference();
+    bool attitudeFTLQRControl();
+    bool controlAllocation();
     
     // Variable access
 
@@ -163,32 +222,9 @@ protected:
     AP_Float _rotorIo;
     AP_Float _rotorMaxVoltage;
 
-    AP_Vector3f _rotor1Position;
-    AP_Vector3f _rotor2Position;
-    AP_Vector3f _rotor3Position;
-    AP_Vector3f _rotor4Position;
-    AP_Vector3f _rotor5Position;
-    AP_Vector3f _rotor6Position;
-    AP_Vector3f _rotor7Position;
-    AP_Vector3f _rotor8Position;
-
-    AP_Vector3f _rotor1Orientation;
-    AP_Vector3f _rotor2Orientation;
-    AP_Vector3f _rotor3Orientation;
-    AP_Vector3f _rotor4Orientation;
-    AP_Vector3f _rotor5Orientation;
-    AP_Vector3f _rotor6Orientation;
-    AP_Vector3f _rotor7Orientation;
-    AP_Vector3f _rotor8Orientation;
-
-    AP_Int8 _rotor1Direction;
-    AP_Int8 _rotor2Direction;
-    AP_Int8 _rotor3Direction;
-    AP_Int8 _rotor4Direction;
-    AP_Int8 _rotor5Direction;
-    AP_Int8 _rotor6Direction;
-    AP_Int8 _rotor7Direction;
-    AP_Int8 _rotor8Direction;
+    AP_Vector3f _rotorPosition[8];
+    AP_Vector3f _rotorOrientation[8];
+    AP_Int8 _rotorDirection[8];
 
     ///////////////////////
     /* General variables */
@@ -200,6 +236,23 @@ protected:
     AP_Vector3f _piddKi;
     AP_Vector3f _piddKd;
     AP_Vector3f _piddKdd;
+
+    ////////////////////////////////
+    /* FT-LQR configuration */
+    struct ftlqrConfig
+    {
+        AP_Float P[6];
+        AP_Float Q[6];
+        AP_Float R[8];
+        AP_Float Ef[6];
+        AP_Float Eg[8];
+        AP_Float H[6];
+        AP_Float mu;
+        AP_Float alpha;  
+    } _ftlqrConfig;
+
+
+    
 };
  
 #endif
