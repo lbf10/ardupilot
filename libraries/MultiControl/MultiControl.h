@@ -6,8 +6,10 @@
 
 #pragma once
 
+#define ALLOW_DOUBLE_MATH_FUNCTIONS
+
 #include <AP_Math/AP_Math.h>
-#include <AP_AHRS/AP_AHRS.h>
+#include <AP_AHRS/AP_AHRS_View.h>
 #include <PolyNavigation/PolyNavigation.h>
 #include </usr/include/eigen3/Eigen/Eigen>
 #include <cmath>
@@ -136,18 +138,29 @@ private:
     /* Variables to define on initialization */
 
     // Generic
-    AP_AHRS &ahrs();
+    AP_AHRS_View &_ahrs;
     Eigen::Matrix<double, 3, Eigen::Dynamic> _Mf; // Matrix of forces calculated from rotor positions
     Eigen::Matrix<double, 3, Eigen::Dynamic> _Mt; // Matrix of torques calculated from rotor positions and torques
     Eigen::Matrix<double, Eigen::Dynamic, 3> _pinvMt; // pseudo-inverse of Mt
     Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> _nullMt; // Null-space of Mt
     Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> _attRefAux; //Auxiliary variable for attitude reference calculation. Calculated on init to reduce computation time
     Eigen::Matrix3d _inertia; // body inertia matrix
+    double _maxSpeedsSquared; // Maximum rotor speeds squared
+    double _minSpeedsSquared; // Minimum rotor speeds squared
+    double _opSquared; // Midpoint operational speeds squared
 
     // FT-LQR related
     struct ftlqrRelatedConst {
         Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> C;
-    } _ftLQRConst;     
+    } _ftLQRConst;   
+
+    // Position PIDD related
+    struct piddRelatedConst {
+        Eigen::Array3d Kp;
+        Eigen::Array3d Ki;
+        Eigen::Array3d Kd;
+        Eigen::Array3d Kdd;
+    } _piddConst;  
 
     /////////////////////////////////////////
     /* Variables updated at each iteration */
@@ -160,18 +173,19 @@ private:
     Eigen::Quaterniond _desiredAttitude;
 
     // Current state
-    Eigen::Vector3f _currentPosition;
-    Eigen::Vector3f _currentVelocity;
-    Eigen::Vector3f _currentAcceleration;
-    Eigen::Quaternionf _currentAttitude;
-    Eigen::Vector3f _currentAngularVelocity;
+    Eigen::Vector3d _currentPosition;
+    Eigen::Vector3d _currentVelocity;
+    Eigen::Vector3d _currentAcceleration;
+    Eigen::Quaterniond _currentAttitude;
+    Eigen::Vector3d _currentAngularVelocity;
     Eigen::Matrix<double, Eigen::Dynamic, 1> _currentRotorSpeeds;
 
     // Auxiliary variables
+    double _lastCall;
+    double _controlTimeStep;
     Eigen::Vector3d _desiredForce;
     Eigen::Quaterniond _quaternionError;
-    struct velFilter
-    {
+    struct velFilter {
         Eigen::Vector3d Wbe;
         Eigen::Vector3d angularVelocity;
         Eigen::Vector3d desiredAngularVelocity;
@@ -182,11 +196,17 @@ private:
         Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> P;
     } _ftLQR;
 
-    /* members */
+    // Position PIDD related
+    struct piddRelated {
+        Eigen::Array3d iError;
+    } _pidd;
+    
 
+    /* members */
+    void matrixBtoA(const Eigen::Quaterniond& quaternion, Eigen::Ref<Eigen::Matrix3d> transformationBA);
 public:
     // Constructor
-    MultiControl();
+    MultiControl(AP_AHRS_View &ahrs_other);
     
     // Destructor
     ~MultiControl();
@@ -194,7 +214,7 @@ public:
     // Commands
 
     // Members
-    bool init(AP_AHRS &ahrs_other);
+    bool init();
     bool updateStates(PolyNavigation::state desiredState);
     bool positionControl();
     bool attitudeReference();

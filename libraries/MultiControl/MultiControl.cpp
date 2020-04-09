@@ -1,6 +1,8 @@
 # include "MultiControl.h"
 
-MultiControl::MultiControl()
+MultiControl::MultiControl(AP_AHRS_View &ahrs_other) : 
+    // Links AHRS objects
+    _ahrs(ahrs_other)
 {
 }
 
@@ -9,12 +11,10 @@ MultiControl::~MultiControl()
 }
 
     // Members
-bool MultiControl::init(AP_AHRS &ahrs_other){
+bool MultiControl::init()
+{
     ///////////////////////
     /* Generic variables */
-
-    // Links AHRS objects
-    this->ahrs = ahrs_other;
 
     // Calculates Mf and Mt
     this->_Mf.resize(3,this->_numberOfRotors);
@@ -53,22 +53,44 @@ bool MultiControl::init(AP_AHRS &ahrs_other){
     auxAtt = this->_nullMt.transpose()*(((double)this->_caConfig.Wm)*this->_nullMt+this->_Mf.transpose()*((double)this->_caConfig.Wa)*this->_Mf*this->_nullMt);
     this->_attRefAux = auxAtt.colPivHouseholderQr().solve(this->_nullMt.transpose());
 
-
-    //(N'*(R*N+Mf'*Q*Mf*N))\(N'*
     // Groups inertia values
     Vector3f mI = this->_momentsOfInertia;
     Vector3f pI = this->_productsOfInertia;
     this->_inertia << (double) mI.x, (double) pI.x, (double) pI.y,
                       (double) pI.x, (double) mI.y, (double) pI.z,
-                      (double) pI.y, (double) pI.z, (double) mI.z;    
+                      (double) pI.y, (double) pI.z, (double) mI.z;  
 
-
+    // Maximum , minimum and operational squared speeds    
+    this->_maxSpeedsSquared = (double) this->_rotorMaxSpeed*this->_rotorMaxSpeed;
+    this->_minSpeedsSquared = (double) this->_rotorMinSpeed*this->_rotorMinSpeed;
+    this->_opSquared = (double) 0.5*(this->_maxSpeedsSquared+this->_minSpeedsSquared);
+    
     ////////////////////
     /* FT-LQR related */
 
     // Calculates C
     this->_ftLQRConst.C.resize(3, this->_numberOfRotors);
     this->_ftLQRConst.C = -this->_inertia.inverse()*this->_Mt;
+
+    ///////////////////////////
+    /* Position PIDD related */
+
+    // Initiate PIDD gains
+    Vector3f piddAux = this->_piddKp;
+    this->_piddConst.Kp << (double)piddAux.x, (double)piddAux.y, (double)piddAux.z;
+    Vector3f piddAux = this->_piddKi;
+    this->_piddConst.Ki << (double)piddAux.x, (double)piddAux.y, (double)piddAux.z;
+    Vector3f piddAux = this->_piddKd;
+    this->_piddConst.Kd << (double)piddAux.x, (double)piddAux.y, (double)piddAux.z;
+    Vector3f piddAux = this->_piddKdd;
+    this->_piddConst.Kdd << (double)piddAux.x, (double)piddAux.y, (double)piddAux.z;
+
+    // Initiate PIDD integral error
+    this->_pidd.iError = Eigen::Vector3d::Zero();
+
+    ///////////////////
+    /* General inits */
+    this->_controlTimeStep = 0.0025;
 };
 
 bool MultiControl::updateStates(PolyNavigation::state desiredState){
@@ -79,14 +101,90 @@ bool MultiControl::updateStates(PolyNavigation::state desiredState){
     this->_desiredYaw = (double) desiredState.yaw;
 
     // Update current states from AHRS
+    Vector3f vectorAux;
+    _ahrs.get_relative_position_NED_home(vectorAux);
+    this->_currentPosition << (double) vectorAux.y, (double) vectorAux.x, (double) -vectorAux.z;
+    this->_ahrs.get_velocity_NED(vectorAux);
+    this->_currentVelocity << (double) vectorAux.y, (double) vectorAux.x, (double) -vectorAux.z;
+    vectorAux = this->_ahrs.get_accel_ef_blended();
+    this->_currentAcceleration <<  (double) vectorAux.y, (double) vectorAux.x, (double) -vectorAux.z;
+
+    
+    // Update control time step
+    double thisCall = (double) AP_HAL::millis()/1000.0;
+    this->_controlTimeStep = 0.5*(this->_controlTimeStep+thisCall-this->_lastCall);
+    this->_lastCall = thisCall;
+
+    return true;
 };
 
 bool MultiControl::positionControl(){
-
+    Eigen::Array3d error = (this->_desiredPosition - this->_currentPosition).array(); // Position error
+    this->_pidd.iError = this->_pidd.iError + error * this->_controlTimeStep; // "Integral" of the error
+    Eigen::Array3d derror = (this->_desiredVelocity - this->_currentVelocity).array(); // Derivative of the error
+    Eigen::Array3d dderror = (this->_desiredAcceleration - this->_currentAcceleration).array(); // Second derivative of the error
+    this->_desiredForce = (this->_piddConst.Kp*error+this->_piddConst.Ki*this->_pidd.iError+this->_piddConst.Kd*derror+this->_piddConst.Kdd*dderror).matrix();
 };
 
 bool MultiControl::attitudeReference(){
+    Eigen::Quaterniond qyd((double) cos(this->_desiredYaw/2.0), 0.0, 0.0, (double) sin(this->_desiredYaw/2.0));
+    Eigen::Matrix3d Qyd;
+    matrixBtoA(qyd,Qyd);
+    Eigen::Matrix3d invQyd;
+    invQyd = Qyd.transpose();
+    Eigen::Matrix3d Tcd;
+    Tcd = invQyd*this->_desiredForce;
+    Eigen::MatrixXd aux;
+    aux.resize(this->_Mf.cols(),1);
+    aux << (((double)this->_caConfig.Wm)*this->_opSquared+(this->_Mf.transpose()*((double)this->_caConfig.Wa)*Tcd).array()).matrix();
 
+    Eigen::MatrixXd v;
+    v.resize(this->_attRefAux.rows(),1);
+    v << this->_attRefAux*aux;
+
+    Eigen::MatrixXd omegaSquared;
+    omegaSquared.resize(this->_numberOfRotors,1);
+    omegaSquared = this->_nullMt*v;
+
+    for(int it=0;it<omegaSquared.size();it++){
+        if(omegaSquared(it)<this->_minSpeedsSquared){
+            omegaSquared(it) = this->_minSpeedsSquared;
+        }
+        else if(omegaSquared(it)>this->_maxSpeedsSquared){
+            omegaSquared(it) = this->_maxSpeedsSquared;
+        }
+    }
+
+    Eigen::Vector3d Tc;
+    Tc << this->_Mf*omegaSquared;
+    if(this->_desiredForce(3)<0.0){
+        this->_desiredForce(3) = -this->_desiredForce(2);
+    }
+
+    double thetaCB = 0.0;
+    Eigen::Vector3d vCB;    
+    Eigen::Vector3d Ta;
+    Ta = Qyd*Tc;
+    if(Ta.norm()<=1e-9){
+        thetaCB = acos(this->_desiredForce(2)/this->_desiredForce.norm());        
+        vCB << 0.0, 0.0, 1.0;
+        vCB = (vCB.transpose()).cross(this->_desiredForce.normalized());
+    }
+    else{
+        thetaCB = acos((double) (Ta.transpose()*this->_desiredForce)/(this->_desiredForce.norm()*Ta.norm()));
+        vCB << Ta.normalized();
+        vCB = vCB.cross(this->_desiredForce.normalized());
+    }
+    // thetaCB = real(thetaCB);
+    // %thetaDegress = thetaCB*180/pi
+    Eigen::Quaterniond qCB((double) cos(thetaCB/2), (double) vCB(0)*sin(thetaCB/2), (double) vCB(1)*sin(thetaCB/2), (double) vCB(2)*sin(thetaCB/2));
+    // compound rotation -> desired attitude
+    this->_desiredAttitude.w = qCB.w*qyd.w-qCB.x*qyd.x-qCB.y*qyd.y-qCB.z*qyd.z;
+    this->_desiredAttitude.x = qCB.w*qyd.x+qCB.x*qyd.w+qCB.y*qyd.z-qCB.z*qyd.y;
+    this->_desiredAttitude.y = qCB.w*qyd.y-qCB.x*qyd.z+qCB.y*qyd.w+qCB.z*qyd.x;
+    this->_desiredAttitude.z = qCB.w*qyd.z+qCB.x*qyd.y-qCB.y*qyd.x+qCB.z*qyd.w;
+            
+    this->_desiredAttitude.normalize();
 };
 
 bool MultiControl::attitudeFTLQRControl(){
@@ -96,6 +194,31 @@ bool MultiControl::attitudeFTLQRControl(){
 bool MultiControl::controlAllocation(){
 
 };
+
+/* Auxiliary private members */
+void MultiControl::matrixBtoA(const Eigen::Quaterniond& quaternion, Eigen::Ref<Eigen::Matrix3d> transformationBA){
+    double qww = quaternion.w()*quaternion.w();
+    double qxx = quaternion.x()*quaternion.x();
+    double qyy = quaternion.y()*quaternion.y();
+    double qzz = quaternion.z()*quaternion.z();
+    double q2xy = 2*quaternion.x()*quaternion.y();
+    double q2wz = 2*quaternion.w()*quaternion.z();
+    double q2wy = 2*quaternion.w()*quaternion.y();
+    double q2xz = 2*quaternion.x()*quaternion.z();
+    double q2yz = 2*quaternion.y()*quaternion.z();
+    double q2wx = 2*quaternion.w()*quaternion.x();
+
+    transformationBA(0,0) = qww+qxx-qyy-qzz;
+    transformationBA(0,1) = q2xy-q2wz;
+    transformationBA(0,2) = q2wy+q2xz;
+    transformationBA(1,0) = q2xy+q2wz;
+    transformationBA(1,1) = qww-qxx+qyy-qzz;
+    transformationBA(1,2) = q2yz-q2wx;
+    transformationBA(2,0) = q2xz-q2wy;
+    transformationBA(2,1) = q2yz+q2wx;
+    transformationBA(2,2) = qww-qxx-qyy+qzz;
+};
+
 
 
 const AP_Param::GroupInfo MultiControl::var_info[] = {
