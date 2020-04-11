@@ -119,6 +119,7 @@ bool MultiControl::updateStates(PolyNavigation::state desiredState){
     this->_currentAttitude.x = (double) -SQRT2_DIV2*(this->_quat.q2+this->_quat.q3);
     this->_currentAttitude.y = (double) SQRT2_DIV2*(this->_quat.q3-this->_quat.q2);
     this->_currentAttitude.z = (double) SQRT2_DIV2*(this->_quat.q4+this->_quat.q1);
+    this->_currentAttitude.normalize();
     this->_vectorAux = _ahrs.get_gyro();
     this->_currentAngularVelocity << (double) this->_vectorAux.x, (double) -this->_vectorAux.y, (double) -this->_vectorAux.z;
 
