@@ -16,6 +16,8 @@
 #include <string>
 #include <iostream>
 
+#define SQRT2_DIV2 0.707106781
+
 //////////////////////////////////////////////
 /* Multicopter configuration default values */
 #define MASS_DEFAULT    6.015 
@@ -143,11 +145,11 @@ private:
     Eigen::Matrix<double, 3, Eigen::Dynamic> _Mt; // Matrix of torques calculated from rotor positions and torques
     Eigen::Matrix<double, Eigen::Dynamic, 3> _pinvMt; // pseudo-inverse of Mt
     Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> _nullMt; // Null-space of Mt
-    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> _attRefAux; //Auxiliary variable for attitude reference calculation. Calculated on init to reduce computation time
     Eigen::Matrix3d _inertia; // body inertia matrix
     double _maxSpeedsSquared; // Maximum rotor speeds squared
     double _minSpeedsSquared; // Minimum rotor speeds squared
     double _opSquared; // Midpoint operational speeds squared
+    Eigen::Vector3d _weightVector; // Weight vector in the opposite direction of gravitational aceleration
 
     // FT-LQR related
     struct ftlqrRelatedConst {
@@ -180,7 +182,7 @@ private:
     Eigen::Vector3d _currentAngularVelocity;
     Eigen::Matrix<double, Eigen::Dynamic, 1> _currentRotorSpeeds;
 
-    // Auxiliary variables
+    // Other
     double _lastCall;
     double _controlTimeStep;
     Eigen::Vector3d _desiredForce;
@@ -199,8 +201,26 @@ private:
     // Position PIDD related
     struct piddRelated {
         Eigen::Array3d iError;
+        Eigen::Array3d error;
+        Eigen::Array3d derror;
+        Eigen::Array3d dderror;
     } _pidd;
-    
+
+    /////////////////////////
+    /* Auxiliary variables */
+    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> _attRefAux; //Auxiliary variable for attitude reference calculation. Calculated on init to reduce computation time
+    Vector3f _vectorAux;
+    Quaternion _quat;
+    Eigen::Quaterniond _qyd;
+    Eigen::Matrix3d _Qyd; 
+    Eigen::Matrix3d _invQyd;   
+    Eigen::Matrix3d _Tcd;
+    Eigen::MatrixXd _v;
+    Eigen::MatrixXd _omegaSquared;
+    Eigen::Vector3d _Tc;
+    Eigen::Vector3d _vCB;    
+    Eigen::Vector3d _Ta;
+    Eigen::Quaterniond _qCB;
 
     /* members */
     void matrixBtoA(const Eigen::Quaterniond& quaternion, Eigen::Ref<Eigen::Matrix3d> transformationBA);

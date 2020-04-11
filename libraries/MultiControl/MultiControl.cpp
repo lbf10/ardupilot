@@ -16,6 +16,12 @@ bool MultiControl::init()
     ///////////////////////
     /* Generic variables */
 
+    // Control time step
+    this->_controlTimeStep = 0.0025;
+
+    // Weight vector
+    this->_weightVector << 0.0, 0.0, this->_mass*9.81;
+
     // Calculates Mf and Mt
     this->_Mf.resize(3,this->_numberOfRotors);
     this->_Mt.resize(3,this->_numberOfRotors);
@@ -46,12 +52,6 @@ bool MultiControl::init()
     /* Get the V matrix */
     this->_nullMt.resize((int)svd.matrixV().rows(), (int)svd.matrixV().cols());
     this->_nullMt = svd.matrixV();
-
-    // Calculates attRefAux
-    Eigen::MatrixXd auxAtt(this->_nullMt.cols(),this->_nullMt.cols());
-    this->_attRefAux.resize(this->_nullMt.cols(),this->_nullMt.rows());
-    auxAtt = this->_nullMt.transpose()*(((double)this->_caConfig.Wm)*this->_nullMt+this->_Mf.transpose()*((double)this->_caConfig.Wa)*this->_Mf*this->_nullMt);
-    this->_attRefAux = auxAtt.colPivHouseholderQr().solve(this->_nullMt.transpose());
 
     // Groups inertia values
     Vector3f mI = this->_momentsOfInertia;
@@ -88,9 +88,14 @@ bool MultiControl::init()
     // Initiate PIDD integral error
     this->_pidd.iError = Eigen::Vector3d::Zero();
 
-    ///////////////////
-    /* General inits */
-    this->_controlTimeStep = 0.0025;
+    ///////////////////////////////
+    /* Atitude reference related */
+
+    // Calculates attRefAux
+    Eigen::MatrixXd auxAtt(this->_nullMt.cols(),this->_nullMt.cols());
+    this->_attRefAux.resize(this->_nullMt.cols(),this->_nullMt.rows());
+    auxAtt = this->_nullMt.transpose()*(((double)this->_caConfig.Wm)*this->_nullMt+this->_Mf.transpose()*((double)this->_caConfig.Wa)*this->_Mf*this->_nullMt);
+    this->_attRefAux = auxAtt.colPivHouseholderQr().solve(this->_nullMt.transpose());
 };
 
 bool MultiControl::updateStates(PolyNavigation::state desiredState){
@@ -101,15 +106,22 @@ bool MultiControl::updateStates(PolyNavigation::state desiredState){
     this->_desiredYaw = (double) desiredState.yaw;
 
     // Update current states from AHRS
-    Vector3f vectorAux;
-    _ahrs.get_relative_position_NED_home(vectorAux);
-    this->_currentPosition << (double) vectorAux.y, (double) vectorAux.x, (double) -vectorAux.z;
-    this->_ahrs.get_velocity_NED(vectorAux);
-    this->_currentVelocity << (double) vectorAux.y, (double) vectorAux.x, (double) -vectorAux.z;
-    vectorAux = this->_ahrs.get_accel_ef_blended();
-    this->_currentAcceleration <<  (double) vectorAux.y, (double) vectorAux.x, (double) -vectorAux.z;
+    this->_ahrs.get_relative_position_NED_home(this->_vectorAux);
+    this->_currentPosition << (double) this->_vectorAux.y, (double) this->_vectorAux.x, (double) -this->_vectorAux.z;
+    this->_ahrs.get_velocity_NED(this->_vectorAux);
+    this->_currentVelocity << (double) this->_vectorAux.y, (double) this->_vectorAux.x, (double) -this->_vectorAux.z;
+    this->_vectorAux = this->_ahrs.get_accel_ef_blended();
+    this->_currentAcceleration <<  (double) this->_vectorAux.y, (double) this->_vectorAux.x, (double) -this->_vectorAux.z;
 
-    
+    // Update current attitude and angular velocity from AHRS converting from NED/NED to ENU/ENU
+    this->_ahrs.get_quat_body_to_ned(this->_quat);
+    this->_currentAttitude.w = (double) -SQRT2_DIV2*(this->_quat.q1+this->_quat.q4);
+    this->_currentAttitude.x = (double) -SQRT2_DIV2*(this->_quat.q2+this->_quat.q3);
+    this->_currentAttitude.y = (double) SQRT2_DIV2*(this->_quat.q3-this->_quat.q2);
+    this->_currentAttitude.z = (double) SQRT2_DIV2*(this->_quat.q4+this->_quat.q1);
+    this->_vectorAux = _ahrs.get_gyro();
+    this->_currentAngularVelocity << (double) this->_vectorAux.x, (double) -this->_vectorAux.y, (double) -this->_vectorAux.z;
+
     // Update control time step
     double thisCall = (double) AP_HAL::millis()/1000.0;
     this->_controlTimeStep = 0.5*(this->_controlTimeStep+thisCall-this->_lastCall);
@@ -119,70 +131,71 @@ bool MultiControl::updateStates(PolyNavigation::state desiredState){
 };
 
 bool MultiControl::positionControl(){
-    Eigen::Array3d error = (this->_desiredPosition - this->_currentPosition).array(); // Position error
-    this->_pidd.iError = this->_pidd.iError + error * this->_controlTimeStep; // "Integral" of the error
-    Eigen::Array3d derror = (this->_desiredVelocity - this->_currentVelocity).array(); // Derivative of the error
-    Eigen::Array3d dderror = (this->_desiredAcceleration - this->_currentAcceleration).array(); // Second derivative of the error
-    this->_desiredForce = (this->_piddConst.Kp*error+this->_piddConst.Ki*this->_pidd.iError+this->_piddConst.Kd*derror+this->_piddConst.Kdd*dderror).matrix();
+    this->_pidd.error = (this->_desiredPosition - this->_currentPosition).array(); // Position error
+    this->_pidd.iError = this->_pidd.iError + this->_pidd.error * this->_controlTimeStep; // "Integral" of the error
+    this->_pidd.derror = (this->_desiredVelocity - this->_currentVelocity).array(); // Derivative of the error
+    this->_pidd.dderror = (this->_desiredAcceleration - this->_currentAcceleration).array(); // Second derivative of the error
+    this->_desiredForce = (this->_piddConst.Kp*this->_pidd.error+
+                            this->_piddConst.Ki*this->_pidd.iError+
+                            this->_piddConst.Kd*this->_pidd.derror+
+                            this->_piddConst.Kdd*this->_pidd.dderror).matrix()+this->_weightVector;
 };
 
 bool MultiControl::attitudeReference(){
-    Eigen::Quaterniond qyd((double) cos(this->_desiredYaw/2.0), 0.0, 0.0, (double) sin(this->_desiredYaw/2.0));
-    Eigen::Matrix3d Qyd;
-    matrixBtoA(qyd,Qyd);
-    Eigen::Matrix3d invQyd;
-    invQyd = Qyd.transpose();
-    Eigen::Matrix3d Tcd;
-    Tcd = invQyd*this->_desiredForce;
+    this->_qyd.w = (double) cos(this->_desiredYaw/2.0);
+    this->_qyd.x = 0.0;
+    this->_qyd.y = 0.0;
+    this->_qyd.z = (double) sin(this->_desiredYaw/2.0);
+    matrixBtoA(this->_qyd,this->_Qyd);
+    this->_invQyd = this->_Qyd.transpose();
+    this->_Tcd = this->_invQyd*this->_desiredForce;
     Eigen::MatrixXd aux;
     aux.resize(this->_Mf.cols(),1);
-    aux << (((double)this->_caConfig.Wm)*this->_opSquared+(this->_Mf.transpose()*((double)this->_caConfig.Wa)*Tcd).array()).matrix();
+    aux << (((double)this->_caConfig.Wm)*this->_opSquared+(this->_Mf.transpose()*((double)this->_caConfig.Wa)*this->_Tcd).array()).matrix();
 
-    Eigen::MatrixXd v;
-    v.resize(this->_attRefAux.rows(),1);
-    v << this->_attRefAux*aux;
+    this->_v.resize(this->_attRefAux.rows(),1);
+    this->_v << this->_attRefAux*aux;
 
-    Eigen::MatrixXd omegaSquared;
-    omegaSquared.resize(this->_numberOfRotors,1);
-    omegaSquared = this->_nullMt*v;
+    this->_omegaSquared.resize(this->_numberOfRotors,1);
+    this->_omegaSquared = this->_nullMt*this->_v;
 
-    for(int it=0;it<omegaSquared.size();it++){
-        if(omegaSquared(it)<this->_minSpeedsSquared){
-            omegaSquared(it) = this->_minSpeedsSquared;
+    for(int it=0;it<this->_omegaSquared.size();it++){
+        if(this->_omegaSquared(it)<this->_minSpeedsSquared){
+            this->_omegaSquared(it) = this->_minSpeedsSquared;
         }
-        else if(omegaSquared(it)>this->_maxSpeedsSquared){
-            omegaSquared(it) = this->_maxSpeedsSquared;
+        else if(this->_omegaSquared(it)>this->_maxSpeedsSquared){
+            this->_omegaSquared(it) = this->_maxSpeedsSquared;
         }
     }
 
-    Eigen::Vector3d Tc;
-    Tc << this->_Mf*omegaSquared;
+    this->_Tc << this->_Mf*this->_omegaSquared;
     if(this->_desiredForce(3)<0.0){
         this->_desiredForce(3) = -this->_desiredForce(2);
     }
 
     double thetaCB = 0.0;
-    Eigen::Vector3d vCB;    
-    Eigen::Vector3d Ta;
-    Ta = Qyd*Tc;
-    if(Ta.norm()<=1e-9){
+    this->_Ta = this->_Qyd*this->_Tc;
+    if(this->_Ta.norm()<=1e-9){
         thetaCB = acos(this->_desiredForce(2)/this->_desiredForce.norm());        
-        vCB << 0.0, 0.0, 1.0;
-        vCB = (vCB.transpose()).cross(this->_desiredForce.normalized());
+        this->_vCB << 0.0, 0.0, 1.0;
+        this->_vCB = (this->_vCB.transpose()).cross(this->_desiredForce.normalized());
     }
     else{
-        thetaCB = acos((double) (Ta.transpose()*this->_desiredForce)/(this->_desiredForce.norm()*Ta.norm()));
-        vCB << Ta.normalized();
-        vCB = vCB.cross(this->_desiredForce.normalized());
+        thetaCB = acos((double) (this->_Ta.transpose()*this->_desiredForce)/(this->_desiredForce.norm()*this->_Ta.norm()));
+        this->_vCB << this->_Ta.normalized();
+        this->_vCB = this->_vCB.cross(this->_desiredForce.normalized());
     }
     // thetaCB = real(thetaCB);
     // %thetaDegress = thetaCB*180/pi
-    Eigen::Quaterniond qCB((double) cos(thetaCB/2), (double) vCB(0)*sin(thetaCB/2), (double) vCB(1)*sin(thetaCB/2), (double) vCB(2)*sin(thetaCB/2));
+    this->_qCB.w = (double) cos(thetaCB/2);
+    this->_qCB.x = (double) this->_vCB(0)*sin(thetaCB/2);
+    this->_qCB.y = (double) this->_vCB(1)*sin(thetaCB/2);
+    this->_qCB.z = (double) this->_vCB(2)*sin(thetaCB/2);
     // compound rotation -> desired attitude
-    this->_desiredAttitude.w = qCB.w*qyd.w-qCB.x*qyd.x-qCB.y*qyd.y-qCB.z*qyd.z;
-    this->_desiredAttitude.x = qCB.w*qyd.x+qCB.x*qyd.w+qCB.y*qyd.z-qCB.z*qyd.y;
-    this->_desiredAttitude.y = qCB.w*qyd.y-qCB.x*qyd.z+qCB.y*qyd.w+qCB.z*qyd.x;
-    this->_desiredAttitude.z = qCB.w*qyd.z+qCB.x*qyd.y-qCB.y*qyd.x+qCB.z*qyd.w;
+    this->_desiredAttitude.w = this->_qCB.w*this->_qyd.w-this->_qCB.x*this->_qyd.x-this->_qCB.y*this->_qyd.y-this->_qCB.z*this->_qyd.z;
+    this->_desiredAttitude.x = this->_qCB.w*this->_qyd.x+this->_qCB.x*this->_qyd.w+this->_qCB.y*this->_qyd.z-this->_qCB.z*this->_qyd.y;
+    this->_desiredAttitude.y = this->_qCB.w*this->_qyd.y-this->_qCB.x*this->_qyd.z+this->_qCB.y*this->_qyd.w+this->_qCB.z*this->_qyd.x;
+    this->_desiredAttitude.z = this->_qCB.w*this->_qyd.z+this->_qCB.x*this->_qyd.y-this->_qCB.y*this->_qyd.x+this->_qCB.z*this->_qyd.w;
             
     this->_desiredAttitude.normalize();
 };
