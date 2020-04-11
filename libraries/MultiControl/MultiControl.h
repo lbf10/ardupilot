@@ -209,6 +209,7 @@ private:
     /////////////////////////
     /* Auxiliary variables */
     Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> _attRefAux; //Auxiliary variable for attitude reference calculation. Calculated on init to reduce computation time
+    Eigen::MatrixXd _attRefAux2;
     Vector3f _vectorAux;
     Quaternion _quat;
     Eigen::Quaterniond _qyd;

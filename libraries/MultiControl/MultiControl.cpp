@@ -96,6 +96,13 @@ bool MultiControl::init()
     this->_attRefAux.resize(this->_nullMt.cols(),this->_nullMt.rows());
     auxAtt = this->_nullMt.transpose()*(((double)this->_caConfig.Wm)*this->_nullMt+this->_Mf.transpose()*((double)this->_caConfig.Wa)*this->_Mf*this->_nullMt);
     this->_attRefAux = auxAtt.colPivHouseholderQr().solve(this->_nullMt.transpose());
+
+    // Auxiliary variables
+    this->_v.resize(this->_attRefAux.rows(),1);
+    this->_omegaSquared.resize(this->_numberOfRotors,1);
+    this->_qyd.x = 0.0;
+    this->_qyd.y = 0.0;
+    this->_attRefAux2.resize(this->_Mf.cols(),1);
 };
 
 bool MultiControl::updateStates(PolyNavigation::state desiredState){
@@ -144,20 +151,14 @@ bool MultiControl::positionControl(){
 
 bool MultiControl::attitudeReference(){
     this->_qyd.w = (double) cos(this->_desiredYaw/2.0);
-    this->_qyd.x = 0.0;
-    this->_qyd.y = 0.0;
     this->_qyd.z = (double) sin(this->_desiredYaw/2.0);
     matrixBtoA(this->_qyd,this->_Qyd);
     this->_invQyd = this->_Qyd.transpose();
     this->_Tcd = this->_invQyd*this->_desiredForce;
-    Eigen::MatrixXd aux;
-    aux.resize(this->_Mf.cols(),1);
-    aux << (((double)this->_caConfig.Wm)*this->_opSquared+(this->_Mf.transpose()*((double)this->_caConfig.Wa)*this->_Tcd).array()).matrix();
+    this->_attRefAux2 << (((double)this->_caConfig.Wm)*this->_opSquared+(this->_Mf.transpose()*((double)this->_caConfig.Wa)*this->_Tcd).array()).matrix();
 
-    this->_v.resize(this->_attRefAux.rows(),1);
-    this->_v << this->_attRefAux*aux;
+    this->_v << this->_attRefAux*this->_attRefAux2;
 
-    this->_omegaSquared.resize(this->_numberOfRotors,1);
     this->_omegaSquared = this->_nullMt*this->_v;
 
     for(int it=0;it<this->_omegaSquared.size();it++){
