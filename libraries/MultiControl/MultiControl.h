@@ -241,8 +241,28 @@ public:
     bool attitudeReference();
     bool attitudeFTLQRControl();
     bool controlAllocation();
+
+    Vector3f toEuler(Eigen::Quaterniond quat);
+    Vector3f toEuler(Quaternion quat);
     
     // Variable access
+    void desiredAttitude(Quaternion &quat);
+    Vector3f desiredAttitude();
+    void desiredAttitudeNED(Quaternion &quat);
+    Vector3f desiredAttitudeNED();
+    Vector3f currentPosition();
+    Vector3f currentPositionNED();
+    Vector3f currentVelocity();
+    Vector3f currentVelocityNED();
+    Vector3f currentAcceleration();
+    Vector3f currentAccelerationNED();
+    void currentAttitude(Quaternion &quat);
+    Vector3f currentAttitude();
+    void currentAttitudeNED(Quaternion &quat);
+    Vector3f currentAttitudeNED();
+    Vector3f currentAngularVelocity();
+    Vector3f currentAngularVelocityNED();
+    float* currentRotorSpeeds();
 
     // AP variables
     static const struct AP_Param::GroupInfo var_info[];

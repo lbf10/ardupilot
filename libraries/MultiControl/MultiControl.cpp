@@ -234,6 +234,107 @@ void MultiControl::matrixBtoA(const Eigen::Quaterniond& quaternion, Eigen::Ref<E
     transformationBA(2,2) = qww-qxx-qyy+qzz;
 };
 
+    Vector3f MultiControl::toEuler(Eigen::Quaterniond quat){
+        Vector3f eulerAngles;
+        eulerAngles.x = atan2(2*quat.y*quat.z+2*quat.w*quat.x,quat.z*quat.z-quat.y*quat.y-quat.x*quat.x+quat.w*quat.w);
+        eulerAngles.y = -asin(2*quat.x*quat.z-2*quat.w*quat.y);
+        eulerAngles.z = atan2(2*quat.x*quat.y+2*quat.w*quat.z,quat.x*quat.x+quat.w*quat.w-quat.z*quat.z-quat.y*quat.y);
+        return eulerAngles;
+    };
+
+    Vector3f MultiControl::toEuler(Quaternion quat){
+        Vector3f eulerAngles;
+        eulerAngles.x = atan2(2*quat.q3*quat.q4+2*quat.q1*quat.q2,quat.q4*quat.q4-quat.q3*quat.q3-quat.q2*quat.q2+quat.q1*quat.q1);
+        eulerAngles.y = -asin(2*quat.q2*quat.q4-2*quat.q1*quat.q3);
+        eulerAngles.z = atan2(2*quat.q2*quat.q3+2*quat.q1*quat.q4,quat.q2*quat.q2+quat.q1*quat.q1-quat.q4*quat.q4-quat.q3*quat.q3);
+        return eulerAngles;
+    };
+
+    // Variable access
+    void MultiControl::desiredAttitude(Quaternion &quat){
+        quat.q1 = this->_desiredAttitude.w;
+        quat.q2 = this->_desiredAttitude.x;
+        quat.q3 = this->_desiredAttitude.y;
+        quat.q4 = this->_desiredAttitude.z;
+    };
+
+    Vector3f MultiControl::desiredAttitude(){
+        return toEuler(this->_desiredAttitude);
+    };
+
+    void MultiControl::desiredAttitudeNED(Quaternion &quat){};
+    Vector3f MultiControl::desiredAttitudeNED(){};
+
+    Vector3f MultiControl::currentPosition(){
+        Vector3f pos;
+        pos.x = this->_currentPosition(0);
+        pos.y = this->_currentPosition(1);
+        pos.z = this->_currentPosition(2);
+    };
+
+    Vector3f MultiControl::currentPositionNED(){
+        Vector3f pos;
+        pos.x = this->_currentPosition(1);
+        pos.y = this->_currentPosition(0);
+        pos.z = -this->_currentPosition(2);
+    };
+    Vector3f MultiControl::currentVelocity(){
+        Vector3f vel;
+        vel.x = this->_currentPosition(0);
+        vel.y = this->_currentPosition(1);
+        vel.z = this->_currentPosition(2);
+    };
+
+    Vector3f MultiControl::currentVelocityNED(){
+        Vector3f vel;
+        vel.x = this->_currentPosition(1);
+        vel.y = this->_currentPosition(0);
+        vel.z = -this->_currentPosition(2);
+    };
+
+    Vector3f MultiControl::currentAcceleration(){
+        Vector3f acc;
+        acc.x = this->_currentPosition(0);
+        acc.y = this->_currentPosition(1);
+        acc.z = this->_currentPosition(2);
+    };
+
+    Vector3f MultiControl::currentAccelerationNED(){
+        Vector3f acc;
+        acc.x = this->_currentPosition(1);
+        acc.y = this->_currentPosition(0);
+        acc.z = -this->_currentPosition(2);
+    };
+
+    void MultiControl::currentAttitude(Quaternion &quat){
+        quat.q1 = this->_currentAttitude.w;
+        quat.q2 = this->_currentAttitude.x;
+        quat.q3 = this->_currentAttitude.y;
+        quat.q4 = this->_currentAttitude.z;
+    };
+
+    Vector3f MultiControl::currentAttitude(){
+        return toEuler(this->_currentAttitude);
+    };
+
+    void MultiControl::currentAttitudeNED(Quaternion &quat){};
+    Vector3f MultiControl::currentAttitudeNED(){};
+
+    Vector3f MultiControl::currentAngularVelocity(){
+        Vector3f vel;
+        vel.x = this->_currentAngularVelocity(0);
+        vel.y = this->_currentAngularVelocity(1);
+        vel.z = this->_currentAngularVelocity(2);
+    }
+
+    Vector3f MultiControl::currentAngularVelocityNED(){
+        Vector3f vel;
+        vel.x = this->_currentAngularVelocity(0);
+        vel.y = -this->_currentAngularVelocity(1);
+        vel.z = -this->_currentAngularVelocity(2);
+    }
+
+    float* MultiControl::currentRotorSpeeds(){};
 
 
 const AP_Param::GroupInfo MultiControl::var_info[] = {
