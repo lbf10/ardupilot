@@ -125,7 +125,7 @@ bool MultiControl::updateStates(PolyNavigation::state desiredState){
     this->_currentAttitude.w = (double) -SQRT2_DIV2*(this->_quat.q1+this->_quat.q4);
     this->_currentAttitude.x = (double) -SQRT2_DIV2*(this->_quat.q2+this->_quat.q3);
     this->_currentAttitude.y = (double) SQRT2_DIV2*(this->_quat.q3-this->_quat.q2);
-    this->_currentAttitude.z = (double) SQRT2_DIV2*(this->_quat.q4+this->_quat.q1);
+    this->_currentAttitude.z = (double) SQRT2_DIV2*(this->_quat.q4-this->_quat.q1);
     this->_currentAttitude.normalize();
     this->_vectorAux = _ahrs.get_gyro();
     this->_currentAngularVelocity << (double) this->_vectorAux.x, (double) -this->_vectorAux.y, (double) -this->_vectorAux.z;
@@ -234,6 +234,17 @@ void MultiControl::matrixBtoA(const Eigen::Quaterniond& quaternion, Eigen::Ref<E
     transformationBA(2,2) = qww-qxx-qyy+qzz;
 };
 
+
+void MultiControl::swapReferenceFrames(const Eigen::Quaterniond &quatIn, Quaternion &quatOut){
+    quatOut.q1 = (double) -SQRT2_DIV2*(quatIn.w+quatIn.z);
+    quatOut.q2 = (double) -SQRT2_DIV2*(quatIn.x+quatIn.y);
+    quatOut.q3 = (double) SQRT2_DIV2*(quatIn.y-quatIn.x);
+    quatOut.q4 = (double) SQRT2_DIV2*(quatIn.z-quatIn.w);
+    quatOut.normalize();
+};
+
+/* Auxiliary public members */ 
+
     Vector3f MultiControl::toEuler(Eigen::Quaterniond quat){
         Vector3f eulerAngles;
         eulerAngles.x = atan2(2*quat.y*quat.z+2*quat.w*quat.x,quat.z*quat.z-quat.y*quat.y-quat.x*quat.x+quat.w*quat.w);
@@ -262,8 +273,14 @@ void MultiControl::matrixBtoA(const Eigen::Quaterniond& quaternion, Eigen::Ref<E
         return toEuler(this->_desiredAttitude);
     };
 
-    void MultiControl::desiredAttitudeNED(Quaternion &quat){};
-    Vector3f MultiControl::desiredAttitudeNED(){};
+    void MultiControl::desiredAttitudeNED(Quaternion &quat){
+        swapReferenceFrames(this->_desiredAttitude,quat);
+    };
+    Vector3f MultiControl::desiredAttitudeNED(){
+        Quaternion quat;
+        swapReferenceFrames(this->_desiredAttitude,quat);
+        return toEuler(quat);
+    };
 
     Vector3f MultiControl::currentPosition(){
         Vector3f pos;
@@ -317,8 +334,15 @@ void MultiControl::matrixBtoA(const Eigen::Quaterniond& quaternion, Eigen::Ref<E
         return toEuler(this->_currentAttitude);
     };
 
-    void MultiControl::currentAttitudeNED(Quaternion &quat){};
-    Vector3f MultiControl::currentAttitudeNED(){};
+    void MultiControl::currentAttitudeNED(Quaternion &quat){
+        swapReferenceFrames(this->_currentAttitude,quat);
+    };
+
+    Vector3f MultiControl::currentAttitudeNED(){
+        Quaternion quat;
+        swapReferenceFrames(this->_currentAttitude,quat);
+        return toEuler(quat);
+    };
 
     Vector3f MultiControl::currentAngularVelocity(){
         Vector3f vel;

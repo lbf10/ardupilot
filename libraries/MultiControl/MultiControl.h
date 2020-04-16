@@ -173,6 +173,7 @@ private:
     Eigen::Vector3d _desiredAcceleration;
     double _desiredYaw;
     Eigen::Quaterniond _desiredAttitude;
+    Eigen::Vector3d _desiredForce;
 
     // Current state
     Eigen::Vector3d _currentPosition;
@@ -185,7 +186,6 @@ private:
     // Other
     double _lastCall;
     double _controlTimeStep;
-    Eigen::Vector3d _desiredForce;
     Eigen::Quaterniond _quaternionError;
     struct velFilter {
         Eigen::Vector3d Wbe;
@@ -225,6 +225,7 @@ private:
 
     /* members */
     void matrixBtoA(const Eigen::Quaterniond& quaternion, Eigen::Ref<Eigen::Matrix3d> transformationBA);
+    void swapReferenceFrames(const Eigen::Quaterniond &quatIn, Quaternion &quatOut);
 public:
     // Constructor
     MultiControl(AP_AHRS_View &ahrs_other);
