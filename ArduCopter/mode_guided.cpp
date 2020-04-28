@@ -42,6 +42,8 @@ bool ModeGuided::init(bool ignore_checks)
 {
     // start in position control mode
     pos_control_start();
+
+    copter.multicontrol.init();
     return true;
 }
 

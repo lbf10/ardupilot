@@ -10,6 +10,7 @@
 
 #include <AP_Math/AP_Math.h>
 #include <AP_AHRS/AP_AHRS_View.h>
+#include <AP_Param/AP_Param.h>
 #include <PolyNavigation/PolyNavigation.h>
 #include </usr/include/eigen3/Eigen/Eigen>
 #include <cmath>
@@ -21,9 +22,15 @@
 //////////////////////////////////////////////
 /* Multicopter configuration default values */
 #define MASS_DEFAULT    6.015 
-#define MOMENTS_OF_INERTIA_DEFAULT (0.3143978800, 0.3122127800, 0.5557912400)
-#define PRODUCTS_OF_INERTIA_DEFAULT (0.0000861200, -0.0014397600, 0.0002368800)
-#define MAIN_TRANSLATIONAL_FRICTION_DEFAULT (0.25, 0.25, 0.25)
+#define MOMENTS_OF_INERTIA_XX_DEFAULT 0.3143978800
+#define MOMENTS_OF_INERTIA_YY_DEFAULT 0.3122127800
+#define MOMENTS_OF_INERTIA_ZZ_DEFAULT 0.5557912400
+#define PRODUCTS_OF_INERTIA_XY_DEFAULT 0.0000861200
+#define PRODUCTS_OF_INERTIA_XZ_DEFAULT -0.0014397600
+#define PRODUCTS_OF_INERTIA_YZ_DEFAULT 0.0002368800
+#define MAIN_TRANSLATIONAL_FRICTION_X_DEFAULT 0.25
+#define MAIN_TRANSLATIONAL_FRICTION_Y_DEFAULT 0.25
+#define MAIN_TRANSLATIONAL_FRICTION_Z_DEFAULT 0.25
 #define NUMBER_OF_ROTORS_DEFAULT 8
 #define ROTOR_INERTIA_DEFAULT 0.00047935
 #define ROTOR_LIFT_COEFF_DEFAULT 6.97e-5
@@ -38,23 +45,55 @@
 #define ROTOR_IO_DEFAULT 0.6/10.0
 #define ROTOR_MAX_VOLTAGE_DEFAULT 22.0
 
-#define ROTOR1_POSITION_DEFAULT (0.34374, 0.34245, 0.0143)
-#define ROTOR2_POSITION_DEFAULT (-0.341, 0.34213, 0.0143)
-#define ROTOR3_POSITION_DEFAULT (-0.34068, -0.34262, 0.0143)
-#define ROTOR4_POSITION_DEFAULT (0.34407, -0.34229, 0.0143)
-#define ROTOR5_POSITION_DEFAULT (0.33898, 0.33769, 0.0913)
-#define ROTOR6_POSITION_DEFAULT (-0.33624, 0.33736, 0.0913)
-#define ROTOR7_POSITION_DEFAULT (-0.33591, -0.33785, 0.0913)
-#define ROTOR8_POSITION_DEFAULT (0.3393, -0.33753, 0.0913)
+#define ROTOR1_POSITION_X_DEFAULT 0.34374
+#define ROTOR1_POSITION_Y_DEFAULT 0.34245
+#define ROTOR1_POSITION_Z_DEFAULT 0.0143
+#define ROTOR2_POSITION_X_DEFAULT -0.341
+#define ROTOR2_POSITION_Y_DEFAULT 0.34213
+#define ROTOR2_POSITION_Z_DEFAULT 0.0143
+#define ROTOR3_POSITION_X_DEFAULT -0.34068
+#define ROTOR3_POSITION_Y_DEFAULT -0.34262
+#define ROTOR3_POSITION_Z_DEFAULT 0.0143
+#define ROTOR4_POSITION_X_DEFAULT 0.34407
+#define ROTOR4_POSITION_Y_DEFAULT -0.34229
+#define ROTOR4_POSITION_Z_DEFAULT 0.0143
+#define ROTOR5_POSITION_X_DEFAULT 0.33898
+#define ROTOR5_POSITION_Y_DEFAULT 0.33769
+#define ROTOR5_POSITION_Z_DEFAULT 0.0913
+#define ROTOR6_POSITION_X_DEFAULT -0.33624
+#define ROTOR6_POSITION_Y_DEFAULT 0.33736
+#define ROTOR6_POSITION_Z_DEFAULT 0.0913
+#define ROTOR7_POSITION_X_DEFAULT -0.33591
+#define ROTOR7_POSITION_Y_DEFAULT -0.33785
+#define ROTOR7_POSITION_Z_DEFAULT 0.0913
+#define ROTOR8_POSITION_X_DEFAULT 0.3393
+#define ROTOR8_POSITION_Y_DEFAULT -0.33753
+#define ROTOR8_POSITION_Z_DEFAULT 0.0913
 
-#define ROTOR1_ORIENTATION_DEFAULT (-0.061628417, -0.061628417, 0.996194698)
-#define ROTOR2_ORIENTATION_DEFAULT (0.061628417, -0.061628417, 0.996194698)
-#define ROTOR3_ORIENTATION_DEFAULT (0.061628417, 0.061628417, 0.996194698)
-#define ROTOR4_ORIENTATION_DEFAULT (-0.061628417, 0.061628417, 0.996194698)
-#define ROTOR5_ORIENTATION_DEFAULT (-0.061628417, -0.061628417, 0.996194698)
-#define ROTOR6_ORIENTATION_DEFAULT (0.061628417, -0.061628417, 0.996194698)
-#define ROTOR7_ORIENTATION_DEFAULT (0.061628417, 0.061628417, 0.996194698)
-#define ROTOR8_ORIENTATION_DEFAULT (-0.061628417, 0.061628417, 0.996194698)
+#define ROTOR1_ORIENTATION_X_DEFAULT -0.061628417
+#define ROTOR1_ORIENTATION_Y_DEFAULT -0.061628417
+#define ROTOR1_ORIENTATION_Z_DEFAULT 0.996194698
+#define ROTOR2_ORIENTATION_X_DEFAULT 0.061628417
+#define ROTOR2_ORIENTATION_Y_DEFAULT -0.061628417
+#define ROTOR2_ORIENTATION_Z_DEFAULT 0.996194698
+#define ROTOR3_ORIENTATION_X_DEFAULT 0.061628417
+#define ROTOR3_ORIENTATION_Y_DEFAULT 0.061628417
+#define ROTOR3_ORIENTATION_Z_DEFAULT 0.996194698
+#define ROTOR4_ORIENTATION_X_DEFAULT -0.061628417
+#define ROTOR4_ORIENTATION_Y_DEFAULT 0.061628417
+#define ROTOR4_ORIENTATION_Z_DEFAULT 0.996194698
+#define ROTOR5_ORIENTATION_X_DEFAULT -0.061628417
+#define ROTOR5_ORIENTATION_Y_DEFAULT -0.061628417
+#define ROTOR5_ORIENTATION_Z_DEFAULT 0.996194698
+#define ROTOR6_ORIENTATION_X_DEFAULT 0.061628417
+#define ROTOR6_ORIENTATION_Y_DEFAULT 0.061628417
+#define ROTOR6_ORIENTATION_Z_DEFAULT 0.996194698
+#define ROTOR7_ORIENTATION_X_DEFAULT 0.061628417
+#define ROTOR7_ORIENTATION_Y_DEFAULT 0.061628417
+#define ROTOR7_ORIENTATION_Z_DEFAULT 0.996194698
+#define ROTOR8_ORIENTATION_X_DEFAULT -0.061628417
+#define ROTOR8_ORIENTATION_Y_DEFAULT 0.061628417
+#define ROTOR8_ORIENTATION_Z_DEFAULT 0.996194698
 
 #define ROTOR1_DIRECTION_DEFAULT 1
 #define ROTOR2_DIRECTION_DEFAULT -1
@@ -68,14 +107,24 @@
 
 //////////////////////////////////////
 /* General variables default values */
-#define VELOCITY_FILTER_GAIN_DEFAULT (0.0, 0.0, 0.9)
+#define VELOCITY_FILTER_GAIN_X_DEFAULT 0.0
+#define VELOCITY_FILTER_GAIN_Y_DEFAULT 0.0
+#define VELOCITY_FILTER_GAIN_Z_DEFAULT 0.9
 
 ////////////////////////////////////////////////
 /* Position PIDD configuration default values */
-#define PIDD_KP_DEFAULT (1.0, 1.0, 1.0)
-#define PIDD_KI_DEFAULT (1.0, 1.0, 1.0)
-#define PIDD_KD_DEFAULT (1.0, 1.0, 1.0)
-#define PIDD_KDD_DEFAULT (1.0, 1.0, 1.0)
+#define PIDD_KP_X_DEFAULT 1.0
+#define PIDD_KP_Y_DEFAULT 1.0
+#define PIDD_KP_Z_DEFAULT 1.0
+#define PIDD_KI_X_DEFAULT 1.0
+#define PIDD_KI_Y_DEFAULT 1.0
+#define PIDD_KI_Z_DEFAULT 1.0
+#define PIDD_KD_X_DEFAULT 1.0
+#define PIDD_KD_Y_DEFAULT 1.0
+#define PIDD_KD_Z_DEFAULT 1.0
+#define PIDD_KDD_X_DEFAULT 1.0
+#define PIDD_KDD_Y_DEFAULT 1.0
+#define PIDD_KDD_Z_DEFAULT 1.0
 
 /////////////////////////////////////////
 /* FT-LQR configuration default values */
@@ -164,6 +213,7 @@ private:
         Eigen::Array3d Kdd;
     } _piddConst;  
 
+    PolyNavigation::state _dummyState;
     /////////////////////////////////////////
     /* Variables updated at each iteration */
 
@@ -215,7 +265,7 @@ private:
     Eigen::Quaterniond _qyd;
     Eigen::Matrix3d _Qyd; 
     Eigen::Matrix3d _invQyd;   
-    Eigen::Matrix3d _Tcd;
+    Eigen::Vector3d _Tcd;
     Eigen::MatrixXd _v;
     Eigen::MatrixXd _omegaSquared;
     Eigen::Vector3d _Tc;
@@ -230,6 +280,10 @@ public:
     // Constructor
     MultiControl(AP_AHRS_View &ahrs_other);
     
+    /* Do not allow copies */
+    MultiControl(const MultiControl &other) = delete;
+    MultiControl &operator=(const MultiControl&) = delete;
+
     // Destructor
     ~MultiControl();
 
@@ -247,6 +301,7 @@ public:
     Vector3f toEuler(Quaternion quat);
     
     // Variable access
+    PolyNavigation::state dummyState(){return _dummyState;};
     void desiredAttitude(Quaternion &quat);
     Vector3f desiredAttitude();
     void desiredAttitudeNED(Quaternion &quat);
@@ -272,9 +327,9 @@ protected:
     ////////////////////////////////
     /* Multicopter configuration */
     AP_Float _mass;
-    AP_Vector3f _momentsOfInertia;
-    AP_Vector3f _productsOfInertia;
-    AP_Vector3f _mainTranslationalFriction;
+    AP_Float _momentsOfInertia[3];
+    AP_Float _productsOfInertia[3];
+    AP_Float _mainTranslationalFriction[3];
     AP_Int8 _numberOfRotors;
     AP_Float _rotorInertia;
     AP_Float _rotorLiftCoeff;
@@ -289,20 +344,20 @@ protected:
     AP_Float _rotorIo;
     AP_Float _rotorMaxVoltage;
 
-    AP_Vector3f _rotorPosition[8];
-    AP_Vector3f _rotorOrientation[8];
+    AP_Float _rotorPosition[8][3];
+    AP_Float _rotorOrientation[8][3];
     AP_Int8 _rotorDirection[8];
 
     ///////////////////////
     /* General variables */
-    AP_Vector3f _velocityFilterGain;
+    AP_Float _velocityFilterGain[3];
 
     ////////////////////////////////
     /* Position PIDD configuration */
-    AP_Vector3f _piddKp;
-    AP_Vector3f _piddKi;
-    AP_Vector3f _piddKd;
-    AP_Vector3f _piddKdd;
+    AP_Float _piddKp[3];
+    AP_Float _piddKi[3];
+    AP_Float _piddKd[3];
+    AP_Float _piddKdd[3];
 
     ////////////////////////////////
     /* FT-LQR configuration */

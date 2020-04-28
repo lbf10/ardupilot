@@ -237,6 +237,9 @@ void Copter::fast_loop()
     // --------------------
     read_AHRS();
 
+    // update multicontrol library
+    multicontrol.updateStates(multicontrol.dummyState());
+
 #if FRAME_CONFIG == HELI_FRAME
     update_heli_control_dynamics();
     #if MODE_AUTOROTATE_ENABLED == ENABLED
@@ -344,9 +347,10 @@ void Copter::fourhundred_hz_logging()
 // should be run at 10hz
 void Copter::ten_hz_logging_loop()
 {
-    // std::stringstream ss; 
-    // ss << copter.polyNav.getDesiredPosition().transpose();
-    // hal.console->printf("%d: %s \n",copter.polyNav.isRunning(), ss.str().data());
+    //std::stringstream ss; 
+    //ss << copter.polyNav.getDesiredPosition().transpose();
+    hal.console->printf("Current position: %f, %f, %f \n",multicontrol.currentPosition().x,multicontrol.currentPosition().y,multicontrol.currentPosition().z);
+    
     // log attitude data if we're not already logging at the higher rate
     if (should_log(MASK_LOG_ATTITUDE_MED) && !should_log(MASK_LOG_ATTITUDE_FAST) && !copter.flightmode->logs_attitude()) {
         Log_Write_Attitude();
