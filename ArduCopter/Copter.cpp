@@ -237,6 +237,8 @@ void Copter::fast_loop()
     // --------------------
     read_AHRS();
 
+
+    //hal.console->printf("passou desiredState \n");
     // update multicontrol library
     multicontrol.updateStates(multicontrol.dummyState());
 
@@ -349,7 +351,7 @@ void Copter::ten_hz_logging_loop()
 {
     //std::stringstream ss; 
     //ss << copter.polyNav.getDesiredPosition().transpose();
-    hal.console->printf("Current position: %f, %f, %f \n",multicontrol.currentPosition().x,multicontrol.currentPosition().y,multicontrol.currentPosition().z);
+    //hal.console->printf("Loop: %f | Ang vel x: %f, y: %f, z: %f \n",multicontrol.controlTimeStep(),multicontrol.currentAngularVelocity().x,multicontrol.currentAngularVelocity().y,multicontrol.currentAngularVelocity().z);
     
     // log attitude data if we're not already logging at the higher rate
     if (should_log(MASK_LOG_ATTITUDE_MED) && !should_log(MASK_LOG_ATTITUDE_FAST) && !copter.flightmode->logs_attitude()) {
@@ -625,8 +627,8 @@ Copter::Copter(void)
     rc_throttle_control_in_filter(1.0f),
     inertial_nav(ahrs),
     param_loader(var_info),
-    flightmode(&mode_stabilize),
-    multicontrol(*ahrs_view)
+    flightmode(&mode_stabilize)
+    //multicontrol()
 {
     // init sensor error logging flags
     sensor_health.baro = true;

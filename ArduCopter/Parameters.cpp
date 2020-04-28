@@ -715,11 +715,6 @@ const AP_Param::Info Copter::var_info[] = {
     GOBJECT(osd, "OSD", AP_OSD),
 #endif
 
-
-    // @Group: MUCTRL_
-    // @Path: ../libraries/MultiControl/MultiControl.cpp
-    GOBJECT(multicontrol, "MUCTRL_", MultiControl),
-
     // @Group:
     // @Path: Parameters.cpp
     GOBJECT(g2, "",  ParametersG2),
