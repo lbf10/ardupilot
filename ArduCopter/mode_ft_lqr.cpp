@@ -336,7 +336,7 @@ void ModeFT_LQR::set_angle(const Quaternion &q, float climb_rate_cms, bool use_y
 // should be called at 100hz or more
 void ModeFT_LQR::run()
 {
-    //copter.polyNav.updateTrajectory();
+    copter.polyNav.updateTrajectory();
     // call the correct auto controller
     switch (ft_lqr_mode) {
 
@@ -346,9 +346,17 @@ void ModeFT_LQR::run()
         break;
 
     case Guided_WP:
-        // run position controller
-        pos_control_run();
-        break;
+        // run position controller       
+        {
+            // Eigen::Vector3f aux = copter.polyNav.getDesiredPosition();
+            // Vector3f auxPos;
+            // auxPos.x = aux(1);
+            // auxPos.y = aux(0);
+            // auxPos.z = -aux(2);
+            // set_destination(auxPos, true, -copter.polyNav.getDesiredYaw());
+            // pos_control_run();
+            break;
+        }      
 
     case Guided_Velocity:
         // run velocity controller

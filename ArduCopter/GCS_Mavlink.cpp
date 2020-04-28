@@ -951,7 +951,7 @@ void GCS_MAVLINK_Copter::handleMessage(const mavlink_message_t &msg)
         velocity(2) = velocityAux.z;
         
         copter.polyNav.start(position,velocity,-copter.ahrs.get_yaw(),-copter.ahrs.get_yaw_rate_earth());
-        hal.console->printf("Waypoints: \n %s \n",copter.polyNav.getWaypointsString().data());        
+        //hal.console->printf("Waypoints: \n %s \n",copter.polyNav.getWaypointsString().data());        
         break;
     }
 

@@ -237,8 +237,6 @@ void Copter::fast_loop()
     // --------------------
     read_AHRS();
 
-
-    //hal.console->printf("passou desiredState \n");
     // update multicontrol library
     multicontrol.updateStates(multicontrol.dummyState());
 
@@ -351,6 +349,7 @@ void Copter::ten_hz_logging_loop()
 {
     //std::stringstream ss; 
     //ss << copter.polyNav.getDesiredPosition().transpose();
+    //hal.console->printf("Start: %d, desired position %f %f %f\n",copter.polyNav.isRunning(),copter.polyNav.getDesiredPosition()(0),copter.polyNav.getDesiredPosition()(1),copter.polyNav.getDesiredPosition()(2));
     //hal.console->printf("Loop: %f | Ang vel x: %f, y: %f, z: %f \n",multicontrol.controlTimeStep(),multicontrol.currentAngularVelocity().x,multicontrol.currentAngularVelocity().y,multicontrol.currentAngularVelocity().z);
     
     // log attitude data if we're not already logging at the higher rate
