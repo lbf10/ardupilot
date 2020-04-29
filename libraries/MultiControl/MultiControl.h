@@ -13,7 +13,8 @@
 #include <AP_AHRS/AP_AHRS_View.h>
 #include <AP_Param/AP_Param.h>
 #include <PolyNavigation/PolyNavigation.h>
-#include </usr/include/eigen3/Eigen/Eigen>
+#include </usr/include/Eigen/Eigen>
+#include </usr/include/Eigen/unsupported/Eigen/MatrixFunctions>
 #include <cmath>
 #include <string>
 #include <iostream>
@@ -215,11 +216,13 @@ private:
     double _lastCall;
     double _controlTimeStep;
     Eigen::Quaterniond _quaternionError;
-    struct velFilter {
+
+    // Velocity filter related
+    struct velocityFilterRelated {
         Eigen::Vector3d Wbe;
         Eigen::Vector3d angularVelocity;
         Eigen::Vector3d desiredAngularVelocity;
-    } _velocityFilter;
+    } _velFilter;
 
     // FT-LQR related
     struct ftlqrRelated {
@@ -254,6 +257,7 @@ private:
     /* members */
     void matrixBtoA(const Eigen::Quaterniond& quaternion, Eigen::Ref<Eigen::Matrix3d> transformationBA);
     void swapReferenceFrames(const Eigen::Quaterniond &quatIn, Quaternion &quatOut);
+    void c2d(const Eigen::Ref<const Eigen::MatrixXd>& Ac,const Eigen::Ref<const Eigen::MatrixXd>& Bc, double ts, Eigen::Ref<Eigen::MatrixXd> Ad, Eigen::Ref<Eigen::MatrixXd> Bd);
 public:
     // Constructor
     MultiControl();

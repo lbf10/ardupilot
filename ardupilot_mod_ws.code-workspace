@@ -1,0 +1,21 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../ardupilot_ws"
+		},
+		{
+			"path": "../test_ws"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"vector": "cpp",
+			"string": "cpp",
+			"iostream": "cpp",
+			"matrixfunctions": "cpp"
+		}
+	}
+}

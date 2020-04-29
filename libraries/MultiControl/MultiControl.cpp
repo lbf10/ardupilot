@@ -74,20 +74,11 @@ bool MultiControl::init()
                       (double) PRODUCTS_OF_INERTIA_XY, (double) MOMENTS_OF_INERTIA_YY, (double) PRODUCTS_OF_INERTIA_YZ,
                       (double) PRODUCTS_OF_INERTIA_XZ, (double) PRODUCTS_OF_INERTIA_YZ, (double) MOMENTS_OF_INERTIA_ZZ;  
 
-    // Maximum , minimum and operational squared speeds    
-    
-    
+    // Zero dummy state for testing   
     this->_dummyState.acceleration.setZero();
     this->_dummyState.position.setZero();
     this->_dummyState.velocity.setZero();
     this->_dummyState.yaw = 0.0;
-
-    ////////////////////
-    /* FT-LQR related */
-
-    // Calculates C
-    this->_ftLQRConst.C.resize(3, NUMBER_OF_ROTORS);
-    this->_ftLQRConst.C = -this->_inertia.inverse()*this->_Mt;
 
     ///////////////////////////
     /* Position PIDD related */
@@ -116,6 +107,24 @@ bool MultiControl::init()
     this->_qyd.x() = 0.0;
     this->_qyd.y() = 0.0;
     this->_attRefAux2.resize(this->_Mf.cols(),1);
+
+    //////////////////////////////
+    /* Attitude control related */
+    
+    // Zero velocity filter variables
+    this->_velFilter.Wbe.setZero();
+    this->_velFilter.angularVelocity.setZero();
+    this->_velFilter.desiredAngularVelocity.setZero();
+
+    // Zero rotor states
+    this->_currentRotorSpeeds.setZero();
+
+    ////////////////////
+    /* FT-LQR related */
+
+    // Calculates C
+    this->_ftLQRConst.C.resize(3, NUMBER_OF_ROTORS);
+    this->_ftLQRConst.C = -this->_inertia.inverse()*this->_Mt;
 
     return true;
 };
@@ -229,6 +238,81 @@ bool MultiControl::attitudeReference(){
 };
 
 bool MultiControl::attitudeFTLQRControl(){
+    Eigen::Vector3d previousWbe;
+    Eigen::Vector3d previousAngularVelocity;
+    Eigen::Vector3d angularVelocity;
+    Eigen::Quaterniond qe;
+    Eigen::Vector3d angularAcceleration;
+    Eigen::Vector3d dWbe;
+    Eigen::Vector3d desiredAngularAcceleration;
+
+    previousWbe = this->_velFilter.Wbe;
+    previousAngularVelocity = this->_velFilter.angularVelocity;
+    angularVelocity = this->_velFilter.angularVelocity;
+    this->_velFilter.angularVelocity = this->_currentAngularVelocity;
+       
+    // Quaternion error2
+    qe.w() = + this->_desiredAttitude.w()*this->_currentAttitude.w() + this->_desiredAttitude.x()*this->_currentAttitude.x() + this->_desiredAttitude.y()*this->_currentAttitude.y() + this->_desiredAttitude.z()*this->_currentAttitude.z();
+    qe.x() = + this->_desiredAttitude.x()*this->_currentAttitude.w() - this->_desiredAttitude.w()*this->_currentAttitude.x() - this->_desiredAttitude.z()*this->_currentAttitude.y() + this->_desiredAttitude.y()*this->_currentAttitude.z();
+    qe.y() = + this->_desiredAttitude.y()*this->_currentAttitude.w() + this->_desiredAttitude.z()*this->_currentAttitude.x() - this->_desiredAttitude.w()*this->_currentAttitude.y() - this->_desiredAttitude.x()*this->_currentAttitude.z();
+    qe.z() = + this->_desiredAttitude.z()*this->_currentAttitude.w() - this->_desiredAttitude.y()*this->_currentAttitude.x() + this->_desiredAttitude.x()*this->_currentAttitude.y() - this->_desiredAttitude.w()*this->_currentAttitude.z();
+    if(qe.w()<0){
+        qe.x() = -qe.x();
+        qe.y() = -qe.y();
+        qe.z() = -qe.z();
+    }
+            
+    this->_velFilter.desiredAngularVelocity = (this->_velocityFilterGain.array()*this->_velFilter.desiredAngularVelocity.array()+(Eigen::Array3d::Ones()-this->_velocityFilterGain.array())*(qe.vec().array()/this->_controlTimeStep)).matrix();
+    angularAcceleration = (angularVelocity-previousAngularVelocity)/this->_controlTimeStep;
+    this->_velFilter.Wbe = this->_velFilter.desiredAngularVelocity-angularVelocity;
+    dWbe = (this->_velFilter.Wbe-previousWbe)/this->_controlTimeStep;
+    desiredAngularAcceleration = (dWbe+angularAcceleration);
+        /*    
+     index = 3;   
+                    if ~obj.isRunning()
+                        obj.controlConfig_{index}.P = obj.controlConfig_{index}.initialP;
+                    end                 
+                    Mt = [];
+                    torqueAux = zeros(3,1);
+                    for it=1:obj.numberOfRotors_
+                        Mt = [Mt (obj.rotorLiftCoeff(it,obj.rotorOperatingPoint_(it))*cross(obj.rotor_(it).position,obj.rotor_(it).orientation)-obj.rotorDragCoeff(it,obj.rotorOperatingPoint_(it))*obj.rotorDirection_(it)*obj.rotor_(it).orientation)];
+                        torqueAux = torqueAux + obj.rotorOrientation(it)*(localRotorSpeeds(it)*obj.rotorInertia(it));
+                    end
+                    
+                    auxA = obj.inertia()*obj.previousAngularVelocity()-torqueAux;
+                    auxA = [0 -auxA(3) auxA(2) ; auxA(3) 0 -auxA(1) ; -auxA(2) auxA(1) 0 ];
+                    auxA = obj.inertia()\auxA;
+
+                    Sq = [qe(1),-qe(4),qe(3);
+                          qe(4),qe(1),-qe(2);
+                          -qe(3),qe(2),qe(1)];
+
+                    x_e = [desiredAngularVelocity-obj.previousAngularVelocity();qe(2:4)'];
+                    
+                    C = -obj.inertia()\Mt;
+                    ssA = [auxA, zeros(3); 0.5*Sq, zeros(3)];
+                    ssB = [C;zeros(3,size(C,2))];
+                    sys = ss(ssA,ssB,eye(6),0);
+                    sysD = c2d(sys,obj.controlTimeStep_);
+
+                    F = sysD.A;
+                    G = sysD.B;
+                    P = obj.controlConfig_{index}.P;
+                    R = obj.controlConfig_{index}.R;
+                    Q = obj.controlConfig_{index}.Q;
+                    Ef = obj.controlConfig_{index}.Ef;
+                    Eg = obj.controlConfig_{index}.Eg;
+                    H = obj.controlConfig_{index}.H;
+                    mu = obj.controlConfig_{index}.mu;
+                    alpha = obj.controlConfig_{index}.alpha;
+
+                    [~,K,P] = obj.gainRLQR(P,R,Q,mu,alpha,F,G,H,Ef,Eg);
+                    obj.controlConfig_{index}.P = P;
+                    u = K*x_e;
+                    attitudeControlOutput = -obj.inertia()*(C*u-desiredAngularAcceleration+auxA*desiredAngularVelocity);  
+                */    
+    
+    
     return false;
 };
 
@@ -260,7 +344,6 @@ void MultiControl::matrixBtoA(const Eigen::Quaterniond& quaternion, Eigen::Ref<E
     transformationBA(2,2) = qww-qxx-qyy+qzz;
 };
 
-
 void MultiControl::swapReferenceFrames(const Eigen::Quaterniond &quatIn, Quaternion &quatOut){
     quatOut.q1 = (double) -SQRT2_DIV2*(quatIn.w()+quatIn.z());
     quatOut.q2 = (double) -SQRT2_DIV2*(quatIn.x()+quatIn.y());
@@ -268,6 +351,24 @@ void MultiControl::swapReferenceFrames(const Eigen::Quaterniond &quatIn, Quatern
     quatOut.q4 = (double) SQRT2_DIV2*(quatIn.z()-quatIn.w());
     quatOut.normalize();
 };
+
+/* Converts from continuous to discrete state-space model */
+// References:
+// C2D: http://staff.uz.zgora.pl/wpaszke/materialy/spc/Lec11.pdf
+// Matrix exponential in Eigen: https://eigen.tuxfamily.org/dox/unsupported/group__MatrixFunctions__Module.html#matrixbase_exp
+// Matrix exponential in Matlab: https://www.mathworks.com/help/matlab/ref/expm.html
+void MultiControl::c2d(const Eigen::Ref<const Eigen::MatrixXd>& Ac,const Eigen::Ref<const Eigen::MatrixXd>& Bc, 
+                        double ts, Eigen::Ref<Eigen::MatrixXd> Ad, Eigen::Ref<Eigen::MatrixXd> Bd){
+    Eigen::MatrixXd aux2(Ac.rows(),Ac.cols());
+    aux2 = Ac*ts;
+    Eigen::MatrixExponentialReturnValue<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>> result(aux2);
+    result.evalTo(Ad);
+    Eigen::MatrixXd aux(Ac.rows(),Ac.cols());
+    aux = Ad;
+    aux.diagonal().array() -= 1;
+    Bd = Ac.colPivHouseholderQr().solve(aux.matrix()*Bc);
+};
+
 
 /* Auxiliary public members */ 
 
