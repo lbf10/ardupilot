@@ -237,9 +237,6 @@ void Copter::fast_loop()
     // --------------------
     read_AHRS();
 
-    // update multicontrol library
-    multicontrol.updateStates(multicontrol.dummyState());
-
 #if FRAME_CONFIG == HELI_FRAME
     update_heli_control_dynamics();
     #if MODE_AUTOROTATE_ENABLED == ENABLED
