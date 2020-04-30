@@ -15,6 +15,7 @@
 #include <PolyNavigation/PolyNavigation.h>
 #include </usr/include/Eigen/Eigen>
 #include </usr/include/Eigen/unsupported/Eigen/MatrixFunctions>
+#include <Eigen/Sparse>
 #include <cmath>
 #include <string>
 #include <iostream>
@@ -50,23 +51,23 @@
 #define ROTOR_IO 0.6/10.0
 #define ROTOR_MAX_VOLTAGE 22.0
 
-#define ROTOR1_POSITION 0.34374, 0.34245, 0.0143
-#define ROTOR2_POSITION -0.341, 0.34213, 0.0143
-#define ROTOR3_POSITION -0.34068, -0.34262, 0.0143
-#define ROTOR4_POSITION 0.34407, -0.34229, 0.0143
-#define ROTOR5_POSITION 0.33898, 0.33769, 0.0913
-#define ROTOR6_POSITION -0.33624, 0.33736, 0.0913
-#define ROTOR7_POSITION -0.33591, -0.33785, 0.0913
-#define ROTOR8_POSITION 0.3393, -0.33753, 0.0913
+#define ROTOR_POSITION 0.34374,  0.34245, 0.0143, \
+                       -0.34100,  0.34213, 0.0143, \
+                       -0.34068, -0.34262, 0.0143, \
+                        0.34407, -0.34229, 0.0143, \
+                        0.33898,  0.33769, 0.0913, \
+                       -0.33624,  0.33736, 0.0913, \
+                       -0.33591, -0.33785, 0.0913, \
+                        0.33930, -0.33753, 0.0913
 
-#define ROTOR1_ORIENTATION -0.061628417, -0.061628417, 0.996194698
-#define ROTOR2_ORIENTATION 0.061628417, -0.061628417, 0.996194698
-#define ROTOR3_ORIENTATION 0.061628417, 0.061628417, 0.996194698
-#define ROTOR4_ORIENTATION -0.061628417, 0.061628417, 0.996194698
-#define ROTOR5_ORIENTATION -0.061628417, -0.061628417, 0.996194698
-#define ROTOR6_ORIENTATION 0.061628417, 0.061628417, 0.996194698
-#define ROTOR7_ORIENTATION 0.061628417, 0.061628417, 0.996194698
-#define ROTOR8_ORIENTATION -0.061628417, 0.061628417, 0.996194698
+#define ROTOR_ORIENTATION -0.061628417, -0.061628417, 0.996194698, \
+                           0.061628417, -0.061628417, 0.996194698, \
+                           0.061628417,  0.061628417, 0.996194698, \
+                          -0.061628417,  0.061628417, 0.996194698, \
+                          -0.061628417, -0.061628417, 0.996194698, \
+                           0.061628417,  0.061628417, 0.996194698, \
+                           0.061628417,  0.061628417, 0.996194698, \
+                          -0.061628417,  0.061628417, 0.996194698 
 
 #define ROTOR_DIRECTION 1, -1, 1, -1, -1, 1, -1, 1
 
@@ -93,51 +94,12 @@
 
 /////////////////////////////////////////
 /* FT-LQR configuration default values */
-#define FTLQR_CONFIG_P11 0.0
-#define FTLQR_CONFIG_P22 0.0
-#define FTLQR_CONFIG_P33 0.0
-#define FTLQR_CONFIG_P44 0.0
-#define FTLQR_CONFIG_P55 0.0
-#define FTLQR_CONFIG_P66 0.0
-
-#define FTLQR_CONFIG_Q11 0.0
-#define FTLQR_CONFIG_Q22 0.0
-#define FTLQR_CONFIG_Q33 0.0
-#define FTLQR_CONFIG_Q44 0.0
-#define FTLQR_CONFIG_Q55 0.0
-#define FTLQR_CONFIG_Q66 0.0
-
-#define FTLQR_CONFIG_R11 0.0
-#define FTLQR_CONFIG_R22 0.0
-#define FTLQR_CONFIG_R33 0.0
-#define FTLQR_CONFIG_R44 0.0
-#define FTLQR_CONFIG_R55 0.0
-#define FTLQR_CONFIG_R66 0.0
-#define FTLQR_CONFIG_R77 0.0
-#define FTLQR_CONFIG_R88 0.0
-
-#define FTLQR_CONFIG_EF1 0.0
-#define FTLQR_CONFIG_EF2 0.0
-#define FTLQR_CONFIG_EF3 0.0
-#define FTLQR_CONFIG_EF4 0.0
-#define FTLQR_CONFIG_EF5 0.0
-#define FTLQR_CONFIG_EF6 0.0
-
-#define FTLQR_CONFIG_EG1 0.0
-#define FTLQR_CONFIG_EG2 0.0
-#define FTLQR_CONFIG_EG3 0.0
-#define FTLQR_CONFIG_EG4 0.0
-#define FTLQR_CONFIG_EG5 0.0
-#define FTLQR_CONFIG_EG6 0.0
-#define FTLQR_CONFIG_EG7 0.0
-#define FTLQR_CONFIG_EG8 0.0
-
-#define FTLQR_CONFIG_H1 0.0
-#define FTLQR_CONFIG_H2 0.0
-#define FTLQR_CONFIG_H3 0.0
-#define FTLQR_CONFIG_H4 0.0
-#define FTLQR_CONFIG_H5 0.0
-#define FTLQR_CONFIG_H6 0.0
+#define FTLQR_CONFIG_P_DIAG 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+#define FTLQR_CONFIG_Q_DIAG 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+#define FTLQR_CONFIG_R_DIAG 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+#define FTLQR_CONFIG_EF_ROW 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+#define FTLQR_CONFIG_EG_ROW 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+#define FTLQR_CONFIG_H_COL 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
 
 #define FTLQR_CONFIG_MU 0.0
 #define FTLQR_CONFIG_ALPHA 0.0
@@ -173,15 +135,10 @@ private:
 
     // FT-LQR related
     struct ftlqrRelatedConst {
-        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> C;
-        Eigen::Matrix<double, 6, 1> P;
-        Eigen::Matrix<double, 6, 1> Q;
-        Eigen::Matrix<double, 8, 1> R;
+        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> ssB;
+        Eigen::SparseMatrix<double> Q;
+        Eigen::SparseMatrix<double> R;
         Eigen::Matrix<double, 6, 1> Ef;
-        Eigen::Matrix<double, 8, 1> Eg;
-        Eigen::Matrix<double, 6, 1> H;
-        float mu;
-        float alpha;  
     } _ftLQRConst;   
 
     // Position PIDD related
@@ -226,7 +183,9 @@ private:
 
     // FT-LQR related
     struct ftlqrRelated {
-        Eigen::Matrix<double, 6, 6> P;
+        Eigen::MatrixXd P(6,6);
+        Eigen::SparseMatrix<double> left;
+        Eigen::SparseMatrix<double> right;
     } _ftLQR;
 
     // Position PIDD related
@@ -258,6 +217,7 @@ private:
     void matrixBtoA(const Eigen::Quaterniond& quaternion, Eigen::Ref<Eigen::Matrix3d> transformationBA);
     void swapReferenceFrames(const Eigen::Quaterniond &quatIn, Quaternion &quatOut);
     void c2d(const Eigen::Ref<const Eigen::MatrixXd>& Ac,const Eigen::Ref<const Eigen::MatrixXd>& Bc, double ts, Eigen::Ref<Eigen::MatrixXd> Ad, Eigen::Ref<Eigen::MatrixXd> Bd);
+    void gainRLQR(const Eigen::Ref<const Eigen::MatrixXd>& F, const Eigen::Ref<const Eigen::MatrixXd>& G, Eigen::Ref<Eigen::MatrixXd> L, Eigen::Ref<Eigen::MatrixXd> K);
 public:
     // Constructor
     MultiControl();

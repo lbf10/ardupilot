@@ -28,24 +28,10 @@ bool MultiControl::init()
     this->_pinvMt.resize(NUMBER_OF_ROTORS,3);
 
     this->_rotorPosition.resize(NUMBER_OF_ROTORS,3);
-    this->_rotorPosition << ROTOR1_POSITION,
-                            ROTOR2_POSITION,
-                            ROTOR3_POSITION,
-                            ROTOR4_POSITION,
-                            ROTOR5_POSITION,
-                            ROTOR6_POSITION,
-                            ROTOR7_POSITION,
-                            ROTOR8_POSITION;
+    this->_rotorPosition << ROTOR_POSITION;
     this->_rotorPosition.transposeInPlace();
     this->_rotorOrientation.resize(NUMBER_OF_ROTORS,3);
-    this->_rotorOrientation <<  ROTOR1_ORIENTATION,
-                                ROTOR2_ORIENTATION,
-                                ROTOR3_ORIENTATION,
-                                ROTOR4_ORIENTATION,
-                                ROTOR5_ORIENTATION,
-                                ROTOR6_ORIENTATION,
-                                ROTOR7_ORIENTATION,
-                                ROTOR8_ORIENTATION;
+    this->_rotorOrientation <<  ROTOR_ORIENTATION;
     this->_rotorOrientation.transposeInPlace();
     this->_rotorDirection.resize(NUMBER_OF_ROTORS);
     this->_rotorDirection << ROTOR_DIRECTION;
@@ -122,9 +108,116 @@ bool MultiControl::init()
     ////////////////////
     /* FT-LQR related */
 
-    // Calculates C
-    this->_ftLQRConst.C.resize(3, NUMBER_OF_ROTORS);
-    this->_ftLQRConst.C = -this->_inertia.inverse()*this->_Mt;
+    // Calculates ssB
+    this->_ftLQRConst.ssB.resize(6, NUMBER_OF_ROTORS);
+    this->_ftLQRConst.ssB.topRows<3>() = -this->_inertia.inverse()*this->_Mt;
+    this->_ftLQRConst.ssB.bottomRows<3>().setZero();
+
+    //Initialize Q
+    Eigen::MatrixXd Qaux(6,6);
+    Qaux.setZero();
+    Qaux.diagonal() << FTLQR_CONFIG_Q_DIAG;
+    this->_ftLQRConst.Q.resize(6,6);
+    this->_ftLQRConst.Q.reserve(6);
+    for(int it=0;it<6;it++){
+        this->_ftLQRConst.Q.insert(it,it) = Qaux(it,it);
+    };
+
+    //Initialize R
+    Eigen::MatrixXd Raux(NUMBER_OF_ROTORS,NUMBER_OF_ROTORS);
+    Raux.setZero();
+    Raux.diagonal() << FTLQR_CONFIG_R_DIAG;
+    this->_ftLQRConst.R.resize(NUMBER_OF_ROTORS,NUMBER_OF_ROTORS);
+    this->_ftLQRConst.R.reserve(NUMBER_OF_ROTORS);
+    for(int it=0;it<NUMBER_OF_ROTORS;it++){
+        this->_ftLQRConst.R.insert(it,it) = Raux(it,it);
+    };
+
+    // Initialize "P"
+    this->_ftLQR.P.setZero();
+    this->_ftLQR.P.diagonal() << FTLQR_CONFIG_P_DIAG;
+    
+    //Initialize Ef and Eg
+    this->_ftLQRConst.Ef << FTLQR_CONFIG_EF_ROW;
+        
+    // Temporaries
+    // H
+    Eigen::MatrixXd H(6,1);
+    H << FTLQR_CONFIG_H_COL;
+    // lambda
+    double lambda = FTLQR_CONFIG_ALPHA*FTLQR_CONFIG_MU*(H.transpose()*H).norm();
+    // middle
+    Eigen::MatrixXd middle(6,6);
+    middle = Eigen::Matrix<double,6,6>::Ones()/FTLQR_CONFIG_MU-(H*H.transpose())/lambda;
+    // inv R
+    Eigen::VectorXd invR(Raux.cols());
+    invR = Raux.inverse().diagonal();
+    // inv Q
+    Eigen::VectorXd invQ(Qaux.cols());
+    invQ = Qaux.inverse().diagonal();
+    // inv P
+    Eigen::VectorXd invP(6);
+    invP = this->_ftLQR.P.inverse().diagonal();
+    // Eg
+    Eigen::VectorXd Eg(NUMBER_OF_ROTORS);
+    Eg << FTLQR_CONFIG_EG_ROW;
+
+
+    // Initialize "right"
+    this->_ftLQR.right.resize(25+2*NUMBER_OF_ROTORS,6);
+    this->_ftLQR.right.reserve(50);
+    std::vector<Eigen::Triplet<double>> tripletList;
+    tripletList.reserve(12);
+    for(int it=0;it<6;it++)
+    {
+        tripletList.push_back(Eigen::Triplet<double>(6+NUMBER_OF_ROTORS+it,it,-1));
+    }
+    for(int it=0;it<6;it++)
+    {
+        tripletList.push_back(Eigen::Triplet<double>(18+NUMBER_OF_ROTORS,it,this->_ftLQRConst.Ef(it)));
+    }
+    this->_ftLQR.right.setFromTriplets(tripletList.begin(), tripletList.end());
+
+    // Initialize "left"
+    this->_ftLQR.left.resize(25+2*NUMBER_OF_ROTORS,25+2*NUMBER_OF_ROTORS);
+    this->_ftLQR.left.reserve(103+NUMBER_OF_ROTORS*(5+12));
+    tripletList.clear();
+    tripletList.reserve(103+NUMBER_OF_ROTORS*(5+12));
+    // push 6-sized blocks
+    for(int it=0;it<6;it++)
+    {   
+        // push P
+        tripletList.push_back(Eigen::Triplet<double>(it,it,invP(it)));
+        // push Q
+        tripletList.push_back(Eigen::Triplet<double>(6+NUMBER_OF_ROTORS+it,6+NUMBER_OF_ROTORS+it,invQ(it)));
+        // push eyes
+        tripletList.push_back(Eigen::Triplet<double>(it,19+NUMBER_OF_ROTORS+it,1));
+        tripletList.push_back(Eigen::Triplet<double>(12+NUMBER_OF_ROTORS+it,19+NUMBER_OF_ROTORS+it,1));
+        tripletList.push_back(Eigen::Triplet<double>(19+NUMBER_OF_ROTORS+it,it,1));
+        tripletList.push_back(Eigen::Triplet<double>(19+NUMBER_OF_ROTORS+it,12+NUMBER_OF_ROTORS+it,1));
+        
+    }
+    // push NUMBER_OF_ROTORS-sized blocks
+    for(int it=0;it<NUMBER_OF_ROTORS;it++)
+    {   
+        // push R
+        tripletList.push_back(Eigen::Triplet<double>(6+it,6+it,invR(it)));
+        // push eyes
+        tripletList.push_back(Eigen::Triplet<double>(6+it,25+NUMBER_OF_ROTORS+it,1));
+        tripletList.push_back(Eigen::Triplet<double>(25+NUMBER_OF_ROTORS+it,6+it,1));
+        // push Egs 
+        tripletList.push_back(Eigen::Triplet<double>(18+NUMBER_OF_ROTORS,25+NUMBER_OF_ROTORS+it,-Eg(it)));
+        tripletList.push_back(Eigen::Triplet<double>(25+NUMBER_OF_ROTORS+it,18+NUMBER_OF_ROTORS,-Eg(it)));
+    }
+    tripletList.push_back(Eigen::Triplet<double>(18+NUMBER_OF_ROTORS,18+NUMBER_OF_ROTORS,1/lambda));
+    // push "middle"
+    for(int it=0;it<6;it++){
+        for(int jt=0;jt<6;jt++){
+            tripletList.push_back(Eigen::Triplet<double>(12+NUMBER_OF_ROTORS+it,12+NUMBER_OF_ROTORS+jt,middle(it,jt)));
+        }
+    }
+    this->_ftLQR.left.setFromTriplets(tripletList.begin(), tripletList.end());
+
 
     return true;
 };
@@ -367,6 +460,33 @@ void MultiControl::c2d(const Eigen::Ref<const Eigen::MatrixXd>& Ac,const Eigen::
     aux = Ad;
     aux.diagonal().array() -= 1;
     Bd = Ac.colPivHouseholderQr().solve(aux.matrix()*Bc);
+};
+
+/* Calculates Robust LQR */
+// References:
+// Joao Paulo Cerri, Master`s
+void MultiControl::gainRLQR(const Eigen::Ref<const Eigen::MatrixXd>& F, const Eigen::Ref<const Eigen::MatrixXd>& G, Eigen::Ref<Eigen::MatrixXd> L, Eigen::Ref<Eigen::MatrixXd> K){
+    // Update "left" matrix
+    std::vector<Eigen::Triplet<double>> tripletList;
+    tripletList.reserve(36+12*NUMBER_OF_ROTORS);
+    // Update P
+    Eigen::MatrixXd invP(6,6);
+    invP = this->_ftLQR.P.inverse();
+    for(int it=0;it<6;it++){
+        for(int jt=0;jt<6;jt++){
+            tripletList.push_back(Eigen::Triplet<double>(it,jt,invP(it,jt)));
+        }
+    }
+    // Update G
+    for(int it=0;it<6;it++){
+        for(int jt=0;jt<NUMBER_OF_ROTORS;jt++){
+            tripletList.push_back(Eigen::Triplet<double>(12+NUMBER_OF_ROTORS+it,25+NUMBER_OF_ROTORS+jt,G(it,jt)));
+        }
+    }
+
+
+    this->_ftLQR.left.setFromTriplets(tripletList.begin(), tripletList.end());
+
 };
 
 
