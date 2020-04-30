@@ -481,12 +481,39 @@ void MultiControl::gainRLQR(const Eigen::Ref<const Eigen::MatrixXd>& F, const Ei
     for(int it=0;it<6;it++){
         for(int jt=0;jt<NUMBER_OF_ROTORS;jt++){
             tripletList.push_back(Eigen::Triplet<double>(12+NUMBER_OF_ROTORS+it,25+NUMBER_OF_ROTORS+jt,G(it,jt)));
+            tripletList.push_back(Eigen::Triplet<double>(25+NUMBER_OF_ROTORS+jt,12+NUMBER_OF_ROTORS+it,G(it,jt)));
         }
     }
-
-
     this->_ftLQR.left.setFromTriplets(tripletList.begin(), tripletList.end());
 
+    // Update "right" matrix
+    tripletList.clear();
+    tripletList.reserve(12);
+    // Update F
+    for(int it=0;it<6;it++){
+        for(int jt=0;jt<6;jt++){
+            tripletList.push_back(Eigen::Triplet<double>(12+it,jt,F(it,jt)));
+        }
+    }
+    this->_ftLQR.right.setFromTriplets(tripletList.begin(), tripletList.end());
+
+    // Calculate gains
+    Eigen::MatrixXd gain;
+    this->_ftLQR.left.makeCompressed();
+    Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
+    solver.analyzePattern(this->_ftLQR.left); 
+    // Compute the numerical factorization 
+    solver.factorize(this->_ftLQR.left); 
+    //Use the factors to solve the linear system 
+    gain = solver.solve(this->_ftLQR.right); 
+
+    L = gain.middleRows<6>(19+NUMBER_OF_ROTORS);
+    K = gain.middleRows<NUMBER_OF_ROTORS>(25+NUMBER_OF_ROTORS);
+
+    Eigen::MatrixXd blockF(6,7);
+    blockF.leftCols<6>() = F.transpose();
+    blockF.rightCols<1>() = this->_ftLQRConst.Ef.transpose();
+    this->_ftLQR.P = -gain.middleRows<6>(6+NUMBER_OF_ROTORS)+blockF*gain.middleRows<7>(12+NUMBER_OF_ROTORS);
 };
 
 
