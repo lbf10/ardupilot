@@ -39,7 +39,7 @@ bool MultiControl::init()
     Eigen::Vector3d aux2;
 
     for(int it=0;it<NUMBER_OF_ROTORS;it++){
-        this->_Mf.col(it) = ROTOR_LIFT_COEFF*this->_rotorPosition.col(it);
+        this->_Mf.col(it) = ROTOR_LIFT_COEFF*this->_rotorOrientation.col(it);
         aux = ROTOR_LIFT_COEFF*this->_rotorPosition.col(it);
         aux2 = this->_rotorOrientation.col(it);
         this->_Mt.col(it) = aux.cross(aux2)-ROTOR_DRAG_COEFF*((double) this->_rotorDirection(it))*this->_rotorOrientation.col(it);
@@ -53,7 +53,7 @@ bool MultiControl::init()
     Eigen::JacobiSVD<Eigen::MatrixXd> svd(this->_Mt, Eigen::ComputeFullV);
     /* Get the V matrix */
     this->_nullMt.resize((int)svd.matrixV().rows(), (int)svd.matrixV().cols());
-    this->_nullMt = svd.matrixV();
+    this->_nullMt = svd.matrixV().rightCols(svd.matrixV().cols()-svd.nonzeroSingularValues());
 
     // Groups inertia values
     this->_inertia << (double) MOMENTS_OF_INERTIA_XX, (double) PRODUCTS_OF_INERTIA_XY, (double) PRODUCTS_OF_INERTIA_XZ,
@@ -65,7 +65,7 @@ bool MultiControl::init()
     this->_dummyState.position.setZero();
     this->_dummyState.velocity.setZero();
     this->_dummyState.yaw = 0.0;
-
+    
     ///////////////////////////
     /* Position PIDD related */
 
@@ -217,8 +217,6 @@ bool MultiControl::init()
         }
     }
     this->_ftLQR.left.setFromTriplets(tripletList.begin(), tripletList.end());
-
-
     return true;
 };
 
@@ -467,43 +465,38 @@ void MultiControl::c2d(const Eigen::Ref<const Eigen::MatrixXd>& Ac,const Eigen::
 // Joao Paulo Cerri, Master`s
 void MultiControl::gainRLQR(const Eigen::Ref<const Eigen::MatrixXd>& F, const Eigen::Ref<const Eigen::MatrixXd>& G, Eigen::Ref<Eigen::MatrixXd> L, Eigen::Ref<Eigen::MatrixXd> K){
     // Update "left" matrix
-    std::vector<Eigen::Triplet<double>> tripletList;
-    tripletList.reserve(36+12*NUMBER_OF_ROTORS);
     // Update P
     Eigen::MatrixXd invP(6,6);
     invP = this->_ftLQR.P.inverse();
     for(int it=0;it<6;it++){
         for(int jt=0;jt<6;jt++){
-            tripletList.push_back(Eigen::Triplet<double>(it,jt,invP(it,jt)));
+            this->_ftLQR.left.coeffRef(it,jt) = invP(it,jt);
         }
     }
     // Update G
     for(int it=0;it<6;it++){
         for(int jt=0;jt<NUMBER_OF_ROTORS;jt++){
-            tripletList.push_back(Eigen::Triplet<double>(12+NUMBER_OF_ROTORS+it,25+NUMBER_OF_ROTORS+jt,G(it,jt)));
-            tripletList.push_back(Eigen::Triplet<double>(25+NUMBER_OF_ROTORS+jt,12+NUMBER_OF_ROTORS+it,G(it,jt)));
+            this->_ftLQR.left.coeffRef(12+NUMBER_OF_ROTORS+it,25+NUMBER_OF_ROTORS+jt) = -G(it,jt);
+            this->_ftLQR.left.coeffRef(25+NUMBER_OF_ROTORS+jt,12+NUMBER_OF_ROTORS+it) = -G(it,jt);
         }
     }
-    this->_ftLQR.left.setFromTriplets(tripletList.begin(), tripletList.end());
 
     // Update "right" matrix
-    tripletList.clear();
-    tripletList.reserve(12);
     // Update F
     for(int it=0;it<6;it++){
         for(int jt=0;jt<6;jt++){
-            tripletList.push_back(Eigen::Triplet<double>(12+it,jt,F(it,jt)));
+            this->_ftLQR.right.coeffRef(12+NUMBER_OF_ROTORS+it,jt) = F(it,jt);
         }
     }
-    this->_ftLQR.right.setFromTriplets(tripletList.begin(), tripletList.end());
+    std::cout << "right:" << std::endl << this->_ftLQR.right << std::endl;
+    std::cout << "left:" << std::endl << this->_ftLQR.left << std::endl;
 
     // Calculate gains
     Eigen::MatrixXd gain;
     this->_ftLQR.left.makeCompressed();
-    Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
-    solver.analyzePattern(this->_ftLQR.left); 
-    // Compute the numerical factorization 
-    solver.factorize(this->_ftLQR.left); 
+    Eigen::SparseLU<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int> > solver;
+    std::cout << this->_ftLQR.left << std::endl;
+    solver.compute(this->_ftLQR.left);
     //Use the factors to solve the linear system 
     gain = solver.solve(this->_ftLQR.right); 
 

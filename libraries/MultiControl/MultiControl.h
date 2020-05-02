@@ -65,7 +65,7 @@
                            0.061628417,  0.061628417, 0.996194698, \
                           -0.061628417,  0.061628417, 0.996194698, \
                           -0.061628417, -0.061628417, 0.996194698, \
-                           0.061628417,  0.061628417, 0.996194698, \
+                           0.061628417, -0.061628417, 0.996194698, \
                            0.061628417,  0.061628417, 0.996194698, \
                           -0.061628417,  0.061628417, 0.996194698 
 
@@ -73,9 +73,9 @@
 
 //////////////////////////////////////
 /* General variables default values */
-#define VELOCITY_FILTER_GAIN_X 0.0
-#define VELOCITY_FILTER_GAIN_Y 0.0
-#define VELOCITY_FILTER_GAIN_Z 0.9
+#define VELOCITY_FILTER_GAIN_X 0.893982849632920 
+#define VELOCITY_FILTER_GAIN_Y 0.866909075664830 
+#define VELOCITY_FILTER_GAIN_Z 0.713328100616703
 
 ////////////////////////////////////////////////
 /* Position PIDD configuration default values */
@@ -94,15 +94,15 @@
 
 /////////////////////////////////////////
 /* FT-LQR configuration default values */
-#define FTLQR_CONFIG_P_DIAG 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-#define FTLQR_CONFIG_Q_DIAG 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-#define FTLQR_CONFIG_R_DIAG 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-#define FTLQR_CONFIG_EF_ROW 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-#define FTLQR_CONFIG_EG_ROW 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-#define FTLQR_CONFIG_H_COL 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+#define FTLQR_CONFIG_P_DIAG 5000000, 5000000, 5000000, 51735772.1962334, 13237193.7735967, 5000000
+#define FTLQR_CONFIG_Q_DIAG 136440926.976679, 165320359.177077, 338043223.930318, 811714985.079850, 470697017.566526, 5000000
+#define FTLQR_CONFIG_R_DIAG 582.052408422866, 1.0e-05, 1.0e-05, 1.0e-05, 169.710172090567, 1.0e-05, 1.0e-05, 42.7977897114965
+#define FTLQR_CONFIG_EF_ROW 64242.0816790375, 35819.4947577920, 10, 56082.0041098398, 0, 0
+#define FTLQR_CONFIG_EG_ROW 15572.0046803445, 36270.6230228744, 1000, 1000, 1000, 1000, 1000, 1000
+#define FTLQR_CONFIG_H_COL 1, 1, 1, 1, 1, 1
 
-#define FTLQR_CONFIG_MU 0.0
-#define FTLQR_CONFIG_ALPHA 0.0
+#define FTLQR_CONFIG_MU 1.0e20
+#define FTLQR_CONFIG_ALPHA 1.5
 
 //////////////////////////////////////////////////////////////////
 /* Passive NMAC Control allocation configuration default values */
@@ -183,7 +183,7 @@ private:
 
     // FT-LQR related
     struct ftlqrRelated {
-        Eigen::MatrixXd P(6,6);
+        Eigen::Matrix<double,6,6> P;
         Eigen::SparseMatrix<double> left;
         Eigen::SparseMatrix<double> right;
     } _ftLQR;
