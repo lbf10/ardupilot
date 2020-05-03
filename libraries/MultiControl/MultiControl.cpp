@@ -404,7 +404,7 @@ bool MultiControl::controlAllocation(){
     this->_v << this->_attRefAux*(((double)CA_WM)*ROTOR_OPERATING_POINT_SQUARED+(this->_Mf.transpose()*((double)CA_WA)*this->_desiredForce).array()).matrix();
     Eigen::VectorXd b2(NUMBER_OF_ROTORS);
     b2 << this->_nullMt*this->_v;
-    Eigen::Vector3d utau;
+    Eigen::Matrix<double,NUMBER_OF_ROTORS,1> utau;
     utau << this->_pinvMt*this->_desiredTorque;
     Eigen::Vector3d aux;
     aux << this->_Mf*b2;
@@ -423,7 +423,7 @@ bool MultiControl::controlAllocation(){
     }
 
     this->_desiredRotorSpeeds = (this->_rotorDirection.array()*this->_omegaSquared.array().sqrt()).matrix();
-    this->_desiredRotorVoltages = ROTOR_RM*ROTOR_DRAG_COEFF*this->_desiredRotorSpeeds.array()*this->_desiredRotorSpeeds.array().abs()/ROTOR_KT+60*this->_desiredRotorSpeeds.array()/(ROTOR_KV*M_2_PI);
+    this->_desiredRotorVoltages = (ROTOR_RM*ROTOR_DRAG_COEFF*this->_desiredRotorSpeeds.array()*this->_desiredRotorSpeeds.array().abs()/ROTOR_KT+60*this->_desiredRotorSpeeds.array()/(ROTOR_KV*M_PI*2)).matrix();
     return true;
 };
 
