@@ -160,6 +160,9 @@ private:
     double _desiredYaw;
     Eigen::Quaterniond _desiredAttitude;
     Eigen::Vector3d _desiredForce;
+    Eigen::Vector3d _desiredTorque;
+    Eigen::Matrix<double,NUMBER_OF_ROTORS,1> _desiredRotorSpeeds;
+    Eigen::Matrix<double,NUMBER_OF_ROTORS,1> _desiredRotorVoltages;
 
     // Current state
     Eigen::Vector3d _currentPosition;
@@ -167,7 +170,7 @@ private:
     Eigen::Vector3d _currentAcceleration;
     Eigen::Quaterniond _currentAttitude;
     Eigen::Vector3d _currentAngularVelocity;
-    Eigen::Matrix<double, Eigen::Dynamic, 1> _currentRotorSpeeds;
+    Eigen::Matrix<double, NUMBER_OF_ROTORS, 1> _currentRotorSpeeds;
 
     // Other
     double _lastCall;
@@ -261,6 +264,8 @@ public:
     Vector3f currentAngularVelocity();
     Vector3f currentAngularVelocityNED();
     float* currentRotorSpeeds();
+    float* desiredRotorSpeeds();
+    float* desiredRotorVoltages();
     double controlTimeStep(){return _controlTimeStep;};
 };
  

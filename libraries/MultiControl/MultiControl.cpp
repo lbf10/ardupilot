@@ -217,6 +217,8 @@ bool MultiControl::init()
         }
     }
     this->_ftLQR.left.setFromTriplets(tripletList.begin(), tripletList.end());
+
+    this->_desiredRotorSpeeds.setZero();
     return true;
 };
 
@@ -228,6 +230,7 @@ bool MultiControl::updateStates(PolyNavigation::state desiredState){
     this->_desiredVelocity << (double)desiredState.velocity.x(), (double)desiredState.velocity.y(), (double)desiredState.velocity.z();
     this->_desiredAcceleration << (double)desiredState.acceleration.x(), (double)desiredState.acceleration.y(), (double)desiredState.acceleration.z();
     this->_desiredYaw = (double) desiredState.yaw;
+    this->_currentRotorSpeeds = this->_desiredRotorSpeeds;
 
     //hal.console->printf("passou desiredState");
     // Update current states from AHRS
@@ -295,8 +298,8 @@ bool MultiControl::attitudeReference(){
     }
 
     this->_Tc << this->_Mf*this->_omegaSquared;
-    if(this->_desiredForce(3)<0.0){
-        this->_desiredForce(3) = -this->_desiredForce(2);
+    if(this->_desiredForce(2)<0.0){
+        this->_desiredForce(2) = -this->_desiredForce(2);
     }
 
     double thetaCB = 0.0;
@@ -392,14 +395,36 @@ bool MultiControl::attitudeFTLQRControl(){
 
     Eigen::Matrix<double,6,1> u;
     u << K*x_e;
-    Eigen::Vector3d attitudeControlOutput;
-    attitudeControlOutput = -this->_inertia*(this->_ftLQRConst.ssB.topRows<3>()*u-desiredAngularAcceleration+auxA*this->_velFilter.desiredAngularVelocity);  
+    this->_desiredTorque = -this->_inertia*(this->_ftLQRConst.ssB.topRows<3>()*u-desiredAngularAcceleration+auxA*this->_velFilter.desiredAngularVelocity);  
 
     return true;
 };
 
 bool MultiControl::controlAllocation(){
-    return false;
+    this->_v << this->_attRefAux*(((double)CA_WM)*ROTOR_OPERATING_POINT_SQUARED+(this->_Mf.transpose()*((double)CA_WA)*this->_desiredForce).array()).matrix();
+    Eigen::VectorXd b2(NUMBER_OF_ROTORS);
+    b2 << this->_nullMt*this->_v;
+    Eigen::Vector3d utau;
+    utau << this->_pinvMt*this->_desiredTorque;
+    Eigen::Vector3d aux;
+    aux << this->_Mf*b2;
+    double c = (this->_desiredForce-this->_Mf*utau).transpose()*aux;
+    c = c/(aux.transpose()*aux);
+
+    this->_omegaSquared =  utau+b2*c;
+
+    for(int it=0;it<this->_omegaSquared.size();it++){
+        if(this->_omegaSquared(it)<ROTOR_MIN_SPEED_SQUARED){
+            this->_omegaSquared(it) = ROTOR_MIN_SPEED_SQUARED;
+        }
+        else if(this->_omegaSquared(it)>ROTOR_MAX_SPEED_SQUARED){
+            this->_omegaSquared(it) = ROTOR_MAX_SPEED_SQUARED;
+        }
+    }
+
+    this->_desiredRotorSpeeds = (this->_rotorDirection.array()*this->_omegaSquared.array().sqrt()).matrix();
+    this->_desiredRotorVoltages = ROTOR_RM*ROTOR_DRAG_COEFF*this->_desiredRotorSpeeds.array()*this->_desiredRotorSpeeds.array().abs()/ROTOR_KT+60*this->_desiredRotorSpeeds.array()/(ROTOR_KV*M_2_PI);
+    return true;
 };
 
 /* Auxiliary private members */
@@ -624,6 +649,25 @@ void MultiControl::gainRLQR(const Eigen::Ref<const Eigen::MatrixXd>& F, const Ei
     };
 
     float* MultiControl::currentRotorSpeeds(){
-        float *dummy = new float;
-        return dummy;
+        float *returnValue = new float [this->_currentRotorSpeeds.size()];
+        for(int it=0;it<this->_currentRotorSpeeds.size();it++){
+            returnValue[it] = (float) this->_currentRotorSpeeds(it);
+        }
+        return returnValue;
+    };
+
+    float* MultiControl::desiredRotorSpeeds(){
+        float *returnValue = new float [this->_desiredRotorSpeeds.size()];
+        for(int it=0;it<this->_desiredRotorSpeeds.size();it++){
+            returnValue[it] = (float) this->_desiredRotorSpeeds(it);
+        }
+        return returnValue;
+    };
+
+    float* MultiControl::desiredRotorVoltages(){
+        float *returnValue = new float [this->_desiredRotorVoltages.size()];
+        for(int it=0;it<this->_desiredRotorVoltages.size();it++){
+            returnValue[it] = (float) this->_desiredRotorVoltages(it);
+        }
+        return returnValue;
     };
