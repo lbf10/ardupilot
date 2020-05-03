@@ -65,7 +65,7 @@ bool MultiControl::init()
     this->_dummyState.position.setZero();
     this->_dummyState.velocity.setZero();
     this->_dummyState.yaw = 0.0;
-    
+
     ///////////////////////////
     /* Position PIDD related */
 
@@ -342,7 +342,7 @@ bool MultiControl::attitudeFTLQRControl(){
     angularVelocity = this->_velFilter.angularVelocity;
     this->_velFilter.angularVelocity = this->_currentAngularVelocity;
        
-    // Quaternion error2
+    // Quaternion error
     qe.w() = + this->_desiredAttitude.w()*this->_currentAttitude.w() + this->_desiredAttitude.x()*this->_currentAttitude.x() + this->_desiredAttitude.y()*this->_currentAttitude.y() + this->_desiredAttitude.z()*this->_currentAttitude.z();
     qe.x() = + this->_desiredAttitude.x()*this->_currentAttitude.w() - this->_desiredAttitude.w()*this->_currentAttitude.x() - this->_desiredAttitude.z()*this->_currentAttitude.y() + this->_desiredAttitude.y()*this->_currentAttitude.z();
     qe.y() = + this->_desiredAttitude.y()*this->_currentAttitude.w() + this->_desiredAttitude.z()*this->_currentAttitude.x() - this->_desiredAttitude.w()*this->_currentAttitude.y() - this->_desiredAttitude.x()*this->_currentAttitude.z();
@@ -358,53 +358,44 @@ bool MultiControl::attitudeFTLQRControl(){
     this->_velFilter.Wbe = this->_velFilter.desiredAngularVelocity-angularVelocity;
     dWbe = (this->_velFilter.Wbe-previousWbe)/this->_controlTimeStep;
     desiredAngularAcceleration = (dWbe+angularAcceleration);
-        /*    
-     index = 3;   
-                    if ~obj.isRunning()
-                        obj.controlConfig_{index}.P = obj.controlConfig_{index}.initialP;
-                    end                 
-                    Mt = [];
-                    torqueAux = zeros(3,1);
-                    for it=1:obj.numberOfRotors_
-                        Mt = [Mt (obj.rotorLiftCoeff(it,obj.rotorOperatingPoint_(it))*cross(obj.rotor_(it).position,obj.rotor_(it).orientation)-obj.rotorDragCoeff(it,obj.rotorOperatingPoint_(it))*obj.rotorDirection_(it)*obj.rotor_(it).orientation)];
-                        torqueAux = torqueAux + obj.rotorOrientation(it)*(localRotorSpeeds(it)*obj.rotorInertia(it));
-                    end
-                    
-                    auxA = obj.inertia()*obj.previousAngularVelocity()-torqueAux;
-                    auxA = [0 -auxA(3) auxA(2) ; auxA(3) 0 -auxA(1) ; -auxA(2) auxA(1) 0 ];
-                    auxA = obj.inertia()\auxA;
-
-                    Sq = [qe(1),-qe(4),qe(3);
-                          qe(4),qe(1),-qe(2);
-                          -qe(3),qe(2),qe(1)];
-
-                    x_e = [desiredAngularVelocity-obj.previousAngularVelocity();qe(2:4)'];
-                    
-                    C = -obj.inertia()\Mt;
-                    ssA = [auxA, zeros(3); 0.5*Sq, zeros(3)];
-                    ssB = [C;zeros(3,size(C,2))];
-                    sys = ss(ssA,ssB,eye(6),0);
-                    sysD = c2d(sys,obj.controlTimeStep_);
-
-                    F = sysD.A;
-                    G = sysD.B;
-                    P = obj.controlConfig_{index}.P;
-                    R = obj.controlConfig_{index}.R;
-                    Q = obj.controlConfig_{index}.Q;
-                    Ef = obj.controlConfig_{index}.Ef;
-                    Eg = obj.controlConfig_{index}.Eg;
-                    H = obj.controlConfig_{index}.H;
-                    mu = obj.controlConfig_{index}.mu;
-                    alpha = obj.controlConfig_{index}.alpha;
-
-                    [~,K,P] = obj.gainRLQR(P,R,Q,mu,alpha,F,G,H,Ef,Eg);
-                    obj.controlConfig_{index}.P = P;
-                    u = K*x_e;
-                    attitudeControlOutput = -obj.inertia()*(C*u-desiredAngularAcceleration+auxA*desiredAngularVelocity);  
-                */    
+    Eigen::Vector3d torqueAux;
+    torqueAux.setZero();
+    for(int it=0;it<NUMBER_OF_ROTORS;it++){
+        torqueAux = torqueAux + this->_rotorOrientation.col(it)*this->_currentRotorSpeeds(it)*ROTOR_INERTIA;
+    }
+    torqueAux = this->_inertia*this->_currentAngularVelocity-torqueAux; 
+    Eigen::Matrix3d auxA;
+    auxA <<             0, -torqueAux(2),  torqueAux(1),
+             torqueAux(2),             0, -torqueAux(0),
+            -torqueAux(1),  torqueAux(0),             0;
+    auxA = this->_inertia.inverse()*auxA;
     
+    Eigen::Matrix3d Sq;
+    Sq << qe.w(), -qe.z(),  qe.y(),
+          qe.z(),  qe.w(), -qe.x(),
+         -qe.y(),  qe.x(),  qe.w();
+
+    Eigen::Vector3d x_e;
+    x_e << this->_velFilter.desiredAngularVelocity-this->_currentAngularVelocity, qe.vec();
     
-    return false;
+    Eigen::Matrix<double,6,6> ssA;
+    ssA.setZero();
+    ssA.topLeftCorner<3,3>() = auxA;
+    ssA.bottomLeftCorner<3,3>() = 0.5*Sq;
+
+    Eigen::Matrix<double,6,6> F;
+    Eigen::Matrix<double,6,NUMBER_OF_ROTORS> G;
+    c2d(ssA, this->_ftLQRConst.ssB,this->_controlTimeStep,F,G);
+
+    Eigen::Matrix<double,NUMBER_OF_ROTORS,6> K;
+    gainRLQR(F,G,K);
+
+    Eigen::Matrix<double,6,1> u;
+    u << K*x_e;
+    Eigen::Vector3d attitudeControlOutput;
+    attitudeControlOutput = -this->_inertia*(this->_ftLQRConst.ssB.topRows<3>()*u-desiredAngularAcceleration+auxA*this->_velFilter.desiredAngularVelocity);  
+
+    return true;
 };
 
 bool MultiControl::controlAllocation(){
@@ -463,7 +454,7 @@ void MultiControl::c2d(const Eigen::Ref<const Eigen::MatrixXd>& Ac,const Eigen::
 /* Calculates Robust LQR */
 // References:
 // Joao Paulo Cerri, Master`s
-void MultiControl::gainRLQR(const Eigen::Ref<const Eigen::MatrixXd>& F, const Eigen::Ref<const Eigen::MatrixXd>& G, Eigen::Ref<Eigen::MatrixXd> L, Eigen::Ref<Eigen::MatrixXd> K){
+void MultiControl::gainRLQR(const Eigen::Ref<const Eigen::MatrixXd>& F, const Eigen::Ref<const Eigen::MatrixXd>& G, Eigen::Ref<Eigen::MatrixXd> K){
     // Update "left" matrix
     // Update P
     Eigen::MatrixXd invP(6,6);
@@ -488,19 +479,16 @@ void MultiControl::gainRLQR(const Eigen::Ref<const Eigen::MatrixXd>& F, const Ei
             this->_ftLQR.right.coeffRef(12+NUMBER_OF_ROTORS+it,jt) = F(it,jt);
         }
     }
-    std::cout << "right:" << std::endl << this->_ftLQR.right << std::endl;
-    std::cout << "left:" << std::endl << this->_ftLQR.left << std::endl;
 
     // Calculate gains
     Eigen::MatrixXd gain;
     this->_ftLQR.left.makeCompressed();
     Eigen::SparseLU<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int> > solver;
-    std::cout << this->_ftLQR.left << std::endl;
     solver.compute(this->_ftLQR.left);
     //Use the factors to solve the linear system 
     gain = solver.solve(this->_ftLQR.right); 
 
-    L = gain.middleRows<6>(19+NUMBER_OF_ROTORS);
+    //L = gain.middleRows<6>(19+NUMBER_OF_ROTORS);
     K = gain.middleRows<NUMBER_OF_ROTORS>(25+NUMBER_OF_ROTORS);
 
     Eigen::MatrixXd blockF(6,7);

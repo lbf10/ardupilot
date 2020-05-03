@@ -217,7 +217,7 @@ private:
     void matrixBtoA(const Eigen::Quaterniond& quaternion, Eigen::Ref<Eigen::Matrix3d> transformationBA);
     void swapReferenceFrames(const Eigen::Quaterniond &quatIn, Quaternion &quatOut);
     void c2d(const Eigen::Ref<const Eigen::MatrixXd>& Ac,const Eigen::Ref<const Eigen::MatrixXd>& Bc, double ts, Eigen::Ref<Eigen::MatrixXd> Ad, Eigen::Ref<Eigen::MatrixXd> Bd);
-    void gainRLQR(const Eigen::Ref<const Eigen::MatrixXd>& F, const Eigen::Ref<const Eigen::MatrixXd>& G, Eigen::Ref<Eigen::MatrixXd> L, Eigen::Ref<Eigen::MatrixXd> K);
+    void gainRLQR(const Eigen::Ref<const Eigen::MatrixXd>& F, const Eigen::Ref<const Eigen::MatrixXd>& G, Eigen::Ref<Eigen::MatrixXd> K);
 public:
     // Constructor
     MultiControl();
