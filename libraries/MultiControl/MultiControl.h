@@ -73,9 +73,9 @@
 
 //////////////////////////////////////
 /* General variables default values */
-#define VELOCITY_FILTER_GAIN_X 0.893982849632920 
-#define VELOCITY_FILTER_GAIN_Y 0.866909075664830 
-#define VELOCITY_FILTER_GAIN_Z 0.713328100616703
+#define VELOCITY_FILTER_GAIN_X 0.0
+#define VELOCITY_FILTER_GAIN_Y 0.0 
+#define VELOCITY_FILTER_GAIN_Z 0.9
 
 ////////////////////////////////////////////////
 /* Position PIDD configuration default values */
@@ -135,11 +135,11 @@ private:
 
     // FT-LQR related
     struct ftlqrRelatedConst {
-        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> ssB;
+        Eigen::Matrix<double, 6, NUMBER_OF_ROTORS> ssB;
         Eigen::SparseMatrix<double> Q;
         Eigen::SparseMatrix<double> R;
         Eigen::Matrix<double, 6, 1> Ef;
-    } _ftLQRConst;   
+    } _ftLQRConst;     
 
     // Position PIDD related
     struct piddRelatedConst {

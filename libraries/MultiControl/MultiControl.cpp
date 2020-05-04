@@ -109,7 +109,6 @@ bool MultiControl::init()
     /* FT-LQR related */
 
     // Calculates ssB
-    this->_ftLQRConst.ssB.resize(6, NUMBER_OF_ROTORS);
     this->_ftLQRConst.ssB.topRows<3>() = -this->_inertia.inverse()*this->_Mt;
     this->_ftLQRConst.ssB.bottomRows<3>().setZero();
 
@@ -142,12 +141,12 @@ bool MultiControl::init()
         
     // Temporaries
     // H
-    Eigen::MatrixXd H(6,1);
+    Eigen::Matrix<double,6,1> H;
     H << FTLQR_CONFIG_H_COL;
     // lambda
-    double lambda = FTLQR_CONFIG_ALPHA*FTLQR_CONFIG_MU*(H.transpose()*H).norm();
+    double lambda = FTLQR_CONFIG_ALPHA*FTLQR_CONFIG_MU*abs(H.transpose()*H);
     // middle
-    Eigen::MatrixXd middle(6,6);
+    Eigen::Matrix<double,6,6> middle;
     middle = Eigen::Matrix<double,6,6>::Ones()/FTLQR_CONFIG_MU-(H*H.transpose())/lambda;
     // inv R
     Eigen::VectorXd invR(Raux.cols());
@@ -156,10 +155,10 @@ bool MultiControl::init()
     Eigen::VectorXd invQ(Qaux.cols());
     invQ = Qaux.inverse().diagonal();
     // inv P
-    Eigen::VectorXd invP(6);
+    Eigen::Matrix<double,6,1> invP;
     invP = this->_ftLQR.P.inverse().diagonal();
     // Eg
-    Eigen::VectorXd Eg(NUMBER_OF_ROTORS);
+    Eigen::Matrix<double,NUMBER_OF_ROTORS,1> Eg;
     Eg << FTLQR_CONFIG_EG_ROW;
 
 
@@ -219,6 +218,7 @@ bool MultiControl::init()
     this->_ftLQR.left.setFromTriplets(tripletList.begin(), tripletList.end());
 
     this->_desiredRotorSpeeds.setZero();
+    this->_velocityFilterGain << VELOCITY_FILTER_GAIN_X, VELOCITY_FILTER_GAIN_Y, VELOCITY_FILTER_GAIN_Z;
     return true;
 };
 
@@ -342,7 +342,7 @@ bool MultiControl::attitudeFTLQRControl(){
 
     previousWbe = this->_velFilter.Wbe;
     previousAngularVelocity = this->_velFilter.angularVelocity;
-    angularVelocity = this->_velFilter.angularVelocity;
+    angularVelocity = this->_currentAngularVelocity;
     this->_velFilter.angularVelocity = this->_currentAngularVelocity;
        
     // Quaternion error
@@ -356,7 +356,9 @@ bool MultiControl::attitudeFTLQRControl(){
         qe.z() = -qe.z();
     }
             
-    this->_velFilter.desiredAngularVelocity = (this->_velocityFilterGain.array()*this->_velFilter.desiredAngularVelocity.array()+(Eigen::Array3d::Ones()-this->_velocityFilterGain.array())*(qe.vec().array()/this->_controlTimeStep)).matrix();
+    Eigen::Vector3d qeVec;
+    qeVec = qe.vec();
+    this->_velFilter.desiredAngularVelocity = (this->_velocityFilterGain.array()*this->_velFilter.desiredAngularVelocity.array()+(Eigen::Array3d::Ones()-this->_velocityFilterGain.array())*(qeVec.array()/this->_controlTimeStep)).matrix();
     angularAcceleration = (angularVelocity-previousAngularVelocity)/this->_controlTimeStep;
     this->_velFilter.Wbe = this->_velFilter.desiredAngularVelocity-angularVelocity;
     dWbe = (this->_velFilter.Wbe-previousWbe)/this->_controlTimeStep;
@@ -378,7 +380,7 @@ bool MultiControl::attitudeFTLQRControl(){
           qe.z(),  qe.w(), -qe.x(),
          -qe.y(),  qe.x(),  qe.w();
 
-    Eigen::Vector3d x_e;
+    Eigen::Matrix<double,6,1> x_e;
     x_e << this->_velFilter.desiredAngularVelocity-this->_currentAngularVelocity, qe.vec();
     
     Eigen::Matrix<double,6,6> ssA;
@@ -393,10 +395,9 @@ bool MultiControl::attitudeFTLQRControl(){
     Eigen::Matrix<double,NUMBER_OF_ROTORS,6> K;
     gainRLQR(F,G,K);
 
-    Eigen::Matrix<double,6,1> u;
+    Eigen::Matrix<double,NUMBER_OF_ROTORS,1> u;
     u << K*x_e;
     this->_desiredTorque = -this->_inertia*(this->_ftLQRConst.ssB.topRows<3>()*u-desiredAngularAcceleration+auxA*this->_velFilter.desiredAngularVelocity);  
-
     return true;
 };
 
@@ -461,19 +462,22 @@ void MultiControl::swapReferenceFrames(const Eigen::Quaterniond &quatIn, Quatern
 
 /* Converts from continuous to discrete state-space model */
 // References:
-// C2D: http://staff.uz.zgora.pl/wpaszke/materialy/spc/Lec11.pdf
+// C2D: Richard J. Gran; Numerical Computing with Simulink, Volume 1: Creating Simulations.
+// https://books.google.com.br/books?id=IeGQP05ZnTUC&pg=PA37&lpg=PA37&dq=how+matlab+computes+B+matrix+in+c2d&source=bl&ots=rcg8Eep-on&sig=ACfU3U1GtU_FevCqiQjLKllc51ZOfXPtzQ&hl=pt-BR&sa=X&ved=2ahUKEwikyJTExpjpAhXEHrkGHfaZA28Q6AEwB3oECAgQAQ#v=onepage&q=how%20matlab%20computes%20B%20matrix%20in%20c2d&f=false
 // Matrix exponential in Eigen: https://eigen.tuxfamily.org/dox/unsupported/group__MatrixFunctions__Module.html#matrixbase_exp
 // Matrix exponential in Matlab: https://www.mathworks.com/help/matlab/ref/expm.html
-void MultiControl::c2d(const Eigen::Ref<const Eigen::MatrixXd>& Ac,const Eigen::Ref<const Eigen::MatrixXd>& Bc, 
+void MultiControl::c2d(const Eigen::Ref<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>>& Ac,const Eigen::Ref<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>>& Bc, 
                         double ts, Eigen::Ref<Eigen::MatrixXd> Ad, Eigen::Ref<Eigen::MatrixXd> Bd){
-    Eigen::MatrixXd aux2(Ac.rows(),Ac.cols());
-    aux2 = Ac*ts;
-    Eigen::MatrixExponentialReturnValue<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>> result(aux2);
-    result.evalTo(Ad);
-    Eigen::MatrixXd aux(Ac.rows(),Ac.cols());
-    aux = Ad;
-    aux.diagonal().array() -= 1;
-    Bd = Ac.colPivHouseholderQr().solve(aux.matrix()*Bc);
+    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> augmented(Ac.rows()+Bc.cols(),Ac.cols()+Bc.cols());
+    augmented.setZero();
+    augmented.topLeftCorner(Ac.rows(),Ac.cols()) = Ac;
+    augmented.topRightCorner(Bc.rows(),Bc.cols()) = Bc;
+    Eigen::MatrixExponentialReturnValue<Eigen::Matrix<long double, Eigen::Dynamic, Eigen::Dynamic>> result(augmented.cast<long double>()*ts);
+    Eigen::Matrix<long double, Eigen::Dynamic, Eigen::Dynamic> output;
+    output.resizeLike(augmented);
+    result.evalTo(output);
+    Ad = output.topLeftCorner(Ac.rows(),Ac.rows()).cast<double>();
+    Bd = output.topRightCorner(Bc.rows(),Bc.cols()).cast<double>();
 };
 
 /* Calculates Robust LQR */
