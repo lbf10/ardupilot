@@ -526,7 +526,8 @@ void ModeAuto::exit_mission()
 bool ModeAuto::do_guided(const AP_Mission::Mission_Command& cmd)
 {
     // only process guided waypoint if we are in guided mode
-    if (copter.control_mode != Mode::Number::GUIDED && !(copter.control_mode == Mode::Number::AUTO && mode() == Auto_NavGuided)) {
+    if (copter.control_mode != Mode::Number::GUIDED && !(copter.control_mode == Mode::Number::AUTO && mode() == Auto_NavGuided)
+            && copter.control_mode != Mode::Number::FT_LQR) {
         return false;
     }
 
@@ -537,7 +538,14 @@ bool ModeAuto::do_guided(const AP_Mission::Mission_Command& cmd)
         {
             // set wp_nav's destination
             Location dest(cmd.content.location);
-            return copter.mode_guided.set_destination(dest);
+            switch (copter.control_mode){
+            case Mode::Number::FT_LQR:
+                return copter.mode_ft_lqr.set_destination(dest);
+                break;            
+            default:
+                return copter.mode_guided.set_destination(dest);
+                break;
+            }
         }
 
         case MAV_CMD_CONDITION_YAW:

@@ -1126,12 +1126,22 @@ void GCS_MAVLINK_Copter::handleMessage(const mavlink_message_t &msg)
         }
 
         // send request
-        if (!pos_ignore && !vel_ignore) {
-            copter.mode_guided.set_destination_posvel(pos_vector, vel_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
-        } else if (pos_ignore && !vel_ignore) {
-            copter.mode_guided.set_velocity(vel_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
-        } else if (!pos_ignore && vel_ignore) {
-            copter.mode_guided.set_destination(pos_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
+        if(copter.get_mode()== (uint8_t) Mode::Number::GUIDED){
+            if (!pos_ignore && !vel_ignore) {
+                copter.mode_guided.set_destination_posvel(pos_vector, vel_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
+            } else if (pos_ignore && !vel_ignore) {
+                copter.mode_guided.set_velocity(vel_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
+            } else if (!pos_ignore && vel_ignore) {
+                copter.mode_guided.set_destination(pos_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
+            }
+        }else if(copter.get_mode()== (uint8_t) Mode::Number::FT_LQR){
+            if (!pos_ignore && !vel_ignore) {
+                copter.mode_ft_lqr.set_destination_posvel(pos_vector, vel_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
+            } else if (pos_ignore && !vel_ignore) {
+                copter.mode_ft_lqr.set_velocity(vel_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
+            } else if (!pos_ignore && vel_ignore) {
+                copter.mode_ft_lqr.set_destination(pos_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
+            }
         }
 
         break;
@@ -1187,21 +1197,40 @@ void GCS_MAVLINK_Copter::handleMessage(const mavlink_message_t &msg)
         }
 
         // send targets to the appropriate guided mode controller
-        if (!pos_ignore && !vel_ignore) {
-            // convert Location to vector from ekf origin for posvel controller
-            if (loc.get_alt_frame() == Location::AltFrame::ABOVE_TERRAIN) {
-                // posvel controller does not support alt-above-terrain
-                break;
+        if(copter.get_mode()== (uint8_t) Mode::Number::GUIDED){
+            if (!pos_ignore && !vel_ignore) {
+                // convert Location to vector from ekf origin for posvel controller
+                if (loc.get_alt_frame() == Location::AltFrame::ABOVE_TERRAIN) {
+                    // posvel controller does not support alt-above-terrain
+                    break;
+                }
+                Vector3f pos_neu_cm;
+                if (!loc.get_vector_from_origin_NEU(pos_neu_cm)) {
+                    break;
+                }
+                copter.mode_guided.set_destination_posvel(pos_neu_cm, Vector3f(packet.vx * 100.0f, packet.vy * 100.0f, -packet.vz * 100.0f), !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
+            } else if (pos_ignore && !vel_ignore) {
+                copter.mode_guided.set_velocity(Vector3f(packet.vx * 100.0f, packet.vy * 100.0f, -packet.vz * 100.0f), !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
+            } else if (!pos_ignore && vel_ignore) {
+                copter.mode_guided.set_destination(loc, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
             }
-            Vector3f pos_neu_cm;
-            if (!loc.get_vector_from_origin_NEU(pos_neu_cm)) {
-                break;
+        }else if(copter.get_mode()== (uint8_t) Mode::Number::FT_LQR){
+            if (!pos_ignore && !vel_ignore) {
+                // convert Location to vector from ekf origin for posvel controller
+                if (loc.get_alt_frame() == Location::AltFrame::ABOVE_TERRAIN) {
+                    // posvel controller does not support alt-above-terrain
+                    break;
+                }
+                Vector3f pos_neu_cm;
+                if (!loc.get_vector_from_origin_NEU(pos_neu_cm)) {
+                    break;
+                }
+                copter.mode_ft_lqr.set_destination_posvel(pos_neu_cm, Vector3f(packet.vx * 100.0f, packet.vy * 100.0f, -packet.vz * 100.0f), !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
+            } else if (pos_ignore && !vel_ignore) {
+                copter.mode_ft_lqr.set_velocity(Vector3f(packet.vx * 100.0f, packet.vy * 100.0f, -packet.vz * 100.0f), !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
+            } else if (!pos_ignore && vel_ignore) {
+                copter.mode_ft_lqr.set_destination(loc, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
             }
-            copter.mode_guided.set_destination_posvel(pos_neu_cm, Vector3f(packet.vx * 100.0f, packet.vy * 100.0f, -packet.vz * 100.0f), !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
-        } else if (pos_ignore && !vel_ignore) {
-            copter.mode_guided.set_velocity(Vector3f(packet.vx * 100.0f, packet.vy * 100.0f, -packet.vz * 100.0f), !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
-        } else if (!pos_ignore && vel_ignore) {
-            copter.mode_guided.set_destination(loc, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
         }
 
         break;

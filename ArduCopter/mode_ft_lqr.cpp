@@ -346,33 +346,34 @@ void ModeFT_LQR::run()
 
     case Guided_WP:
         // run position controller       
-        {
-            bool returnValue = true;
-            // Update polynomial trajectory
-            if(!copter.polyNav.updateTrajectory()){returnValue=false;};
+        {   
+            if(copter.polyNav.isRunning()){
+                bool returnValue = true;
+                // Update polynomial trajectory
+                if(!copter.polyNav.updateTrajectory()){returnValue=false;};
 
-            // Update inertial and desired states
-            if(!copter.multicontrol.updateStates(copter.polyNav.getDesiredState())){returnValue=false;};
+                // Update inertial and desired states
+                if(!copter.multicontrol.updateStates(copter.polyNav.getDesiredState())){returnValue=false;};
 
-            // Update position control
-            if(!copter.multicontrol.positionControl()){returnValue=false;};
+                // Update position control
+                if(!copter.multicontrol.positionControl()){returnValue=false;};
 
-            // Calculate attitude reference
-            if(!copter.multicontrol.attitudeReference()){returnValue=false;};
+                // Calculate attitude reference
+                if(!copter.multicontrol.attitudeReference()){returnValue=false;};
 
-            // Update attitude control
-            if(!copter.multicontrol.attitudeFTLQRControl()){returnValue=false;};
+                // Update attitude control
+                if(!copter.multicontrol.attitudeFTLQRControl()){returnValue=false;};
 
-            // Update control allocation
-            if(!copter.multicontrol.controlAllocation()){returnValue=false;};
+                // Update control allocation
+                if(!copter.multicontrol.controlAllocation()){returnValue=false;};
 
-            // Eigen::Vector3f aux = copter.polyNav.getDesiredPosition();
-            // Vector3f auxPos;
-            // auxPos.x = aux(1);
-            // auxPos.y = aux(0);
-            // auxPos.z = -aux(2);
-            // set_destination(auxPos, true, -copter.polyNav.getDesiredYaw());
-            pos_control_run();
+                if(returnValue){
+                    // assign values to motors
+                }
+            }
+            else{
+                pos_control_run();
+            }
             break;
         }      
 

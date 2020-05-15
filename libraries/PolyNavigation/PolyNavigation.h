@@ -43,7 +43,7 @@ private:
     Eigen::Array<float, 12, Eigen::Dynamic> _waypoints;  // Waypoints
     Eigen::Array<float, Eigen::Dynamic, 1> _timeTo;      // [s] Duration of the transition from the last WP to the next
     float _startTime;                      // [s] Time that the trajectory started 
-    bool _isRunning;                        // Flag to indicate that the trajectory is running
+    bool _isRunning = false;                        // Flag to indicate that the trajectory is running
 
     /* members */
     void trajectoryMatrices(float initialTime, 
