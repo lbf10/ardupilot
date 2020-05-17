@@ -369,6 +369,23 @@ void ModeFT_LQR::run()
 
                 if(returnValue){
                     // assign values to motors
+
+                    // cork now, so that all channel outputs happen at once
+                    SRV_Channels::cork();
+
+                    float battVoltage = copter.battery.voltage();
+                    float *rotVoltages = copter.multicontrol.desiredRotorVoltages();
+                    uint16_t pwm[NUMBER_OF_ROTORS];
+                    for(int it=0;it<NUMBER_OF_ROTORS;it++){
+                        pwm[it] = (uint16_t) 1000*rotVoltages[it]/battVoltage+1000;
+
+                        SRV_Channel::Aux_servo_function_t function = SRV_Channels::get_motor_function(it);
+                        SRV_Channels::set_output_pwm(function, pwm[it]);
+                    }
+                    // printf("%f %i %i %i %i %i %i %i %i \n",battVoltage,pwm[0],pwm[1],pwm[2],pwm[3],pwm[4],pwm[5],pwm[6],pwm[7]);
+
+                    // push all channels
+                    SRV_Channels::push();
                 }
             }
             else{
