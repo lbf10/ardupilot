@@ -18,6 +18,7 @@ bool MultiControl::init()
 
     // Control time step
     this->_controlTimeStep = 0.0025;
+    this->_lastCall = 0.0;
 
     // Weight vector
     this->_weightVector << 0.0, 0.0, MASS*9.81;
@@ -257,7 +258,9 @@ bool MultiControl::updateStates(PolyNavigation::state desiredState){
 
     // Update control time step
     double thisCall = (double) AP_HAL::millis()/1000.0;
-    this->_controlTimeStep = 0.5*(this->_controlTimeStep+thisCall-this->_lastCall);
+    if(this->_lastCall>=1e-60){
+        this->_controlTimeStep = 0.5*(this->_controlTimeStep+thisCall-this->_lastCall);
+    }
     this->_lastCall = thisCall;
 
     return returnState;
@@ -356,47 +359,53 @@ bool MultiControl::attitudeFTLQRControl(){
         qe.z() = -qe.z();
     }
             
-    Eigen::Vector3d qeVec;
+    Eigen::MatrixXd qeVec(3,1);
     qeVec = qe.vec();
     this->_velFilter.desiredAngularVelocity = (this->_velocityFilterGain.array()*this->_velFilter.desiredAngularVelocity.array()+(Eigen::Array3d::Ones()-this->_velocityFilterGain.array())*(qeVec.array()/this->_controlTimeStep)).matrix();
     angularAcceleration = (angularVelocity-previousAngularVelocity)/this->_controlTimeStep;
     this->_velFilter.Wbe = this->_velFilter.desiredAngularVelocity-angularVelocity;
     dWbe = (this->_velFilter.Wbe-previousWbe)/this->_controlTimeStep;
     desiredAngularAcceleration = (dWbe+angularAcceleration);
-    Eigen::Vector3d torqueAux;
+    Eigen::MatrixXd torqueAux(3,1);
     torqueAux.setZero();
     for(int it=0;it<NUMBER_OF_ROTORS;it++){
         torqueAux = torqueAux + this->_rotorOrientation.col(it)*this->_currentRotorSpeeds(it)*ROTOR_INERTIA;
     }
     torqueAux = this->_inertia*this->_currentAngularVelocity-torqueAux; 
-    Eigen::Matrix3d auxA;
+    Eigen::MatrixXd auxA(3,3);
     auxA <<             0, -torqueAux(2),  torqueAux(1),
              torqueAux(2),             0, -torqueAux(0),
             -torqueAux(1),  torqueAux(0),             0;
     auxA = this->_inertia.inverse()*auxA;
     
-    Eigen::Matrix3d Sq;
+    Eigen::MatrixXd Sq(3,3);
     Sq << qe.w(), -qe.z(),  qe.y(),
           qe.z(),  qe.w(), -qe.x(),
          -qe.y(),  qe.x(),  qe.w();
 
-    Eigen::Matrix<double,6,1> x_e;
+    Eigen::MatrixXd x_e(6,1);
     x_e << this->_velFilter.desiredAngularVelocity-this->_currentAngularVelocity, qe.vec();
     
-    Eigen::Matrix<double,6,6> ssA;
+    Eigen::MatrixXd ssA(6,6);
     ssA.setZero();
     ssA.topLeftCorner<3,3>() = auxA;
     ssA.bottomLeftCorner<3,3>() = 0.5*Sq;
 
-    Eigen::Matrix<double,6,6> F;
-    Eigen::Matrix<double,6,NUMBER_OF_ROTORS> G;
+    Eigen::MatrixXd F(6,6);
+    Eigen::MatrixXd G(6,NUMBER_OF_ROTORS);
     c2d(ssA, this->_ftLQRConst.ssB,this->_controlTimeStep,F,G);
 
-    Eigen::Matrix<double,NUMBER_OF_ROTORS,6> K;
+    // ssA.resize(0,0);
+    // Sq.resize(0,0);
+    // torqueAux.resize(0,0);
+    // qeVec.resize(0,0);
+
+    Eigen::MatrixXd K(NUMBER_OF_ROTORS,6);
     gainRLQR(F,G,K);
 
-    Eigen::Matrix<double,NUMBER_OF_ROTORS,1> u;
+    Eigen::MatrixXd u(NUMBER_OF_ROTORS,1);
     u << K*x_e;
+    //K.resize(0,0);
     this->_desiredTorque = -this->_inertia*(this->_ftLQRConst.ssB.topRows<3>()*u-desiredAngularAcceleration+auxA*this->_velFilter.desiredAngularVelocity);  
     return true;
 };
@@ -468,11 +477,12 @@ void MultiControl::swapReferenceFrames(const Eigen::Quaterniond &quatIn, Quatern
 // Matrix exponential in Matlab: https://www.mathworks.com/help/matlab/ref/expm.html
 void MultiControl::c2d(const Eigen::Ref<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>>& Ac,const Eigen::Ref<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>>& Bc, 
                         double ts, Eigen::Ref<Eigen::MatrixXd> Ad, Eigen::Ref<Eigen::MatrixXd> Bd){
-    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> augmented(Ac.rows()+Bc.cols(),Ac.cols()+Bc.cols());
+    Eigen::Matrix<long double, Eigen::Dynamic, Eigen::Dynamic> augmented(Ac.rows()+Bc.cols(),Ac.cols()+Bc.cols());
     augmented.setZero();
-    augmented.topLeftCorner(Ac.rows(),Ac.cols()) = Ac;
-    augmented.topRightCorner(Bc.rows(),Bc.cols()) = Bc;
-    Eigen::MatrixExponentialReturnValue<Eigen::Matrix<long double, Eigen::Dynamic, Eigen::Dynamic>> result(augmented.cast<long double>()*ts);
+    augmented.topLeftCorner(Ac.rows(),Ac.cols()) = Ac.cast<long double>();
+    augmented.topRightCorner(Bc.rows(),Bc.cols()) = Bc.cast<long double>();
+    augmented = augmented*(long double)ts;
+    Eigen::MatrixExponentialReturnValue<Eigen::Matrix<long double, Eigen::Dynamic, Eigen::Dynamic>> result(augmented);
     Eigen::Matrix<long double, Eigen::Dynamic, Eigen::Dynamic> output;
     output.resizeLike(augmented);
     result.evalTo(output);
@@ -483,7 +493,7 @@ void MultiControl::c2d(const Eigen::Ref<const Eigen::Matrix<double, Eigen::Dynam
 /* Calculates Robust LQR */
 // References:
 // Joao Paulo Cerri, Master`s
-void MultiControl::gainRLQR(const Eigen::Ref<const Eigen::MatrixXd>& F, const Eigen::Ref<const Eigen::MatrixXd>& G, Eigen::Ref<Eigen::MatrixXd> K){
+void MultiControl::gainRLQR(Eigen::Ref<Eigen::MatrixXd> F, Eigen::Ref<Eigen::MatrixXd> G, Eigen::Ref<Eigen::MatrixXd> K){
     // Update "left" matrix
     // Update P
     Eigen::MatrixXd invP(6,6);
@@ -493,6 +503,7 @@ void MultiControl::gainRLQR(const Eigen::Ref<const Eigen::MatrixXd>& F, const Ei
             this->_ftLQR.left.coeffRef(it,jt) = invP(it,jt);
         }
     }
+    
     // Update G
     for(int it=0;it<6;it++){
         for(int jt=0;jt<NUMBER_OF_ROTORS;jt++){
@@ -500,7 +511,7 @@ void MultiControl::gainRLQR(const Eigen::Ref<const Eigen::MatrixXd>& F, const Ei
             this->_ftLQR.left.coeffRef(25+NUMBER_OF_ROTORS+jt,12+NUMBER_OF_ROTORS+it) = -G(it,jt);
         }
     }
-
+    
     // Update "right" matrix
     // Update F
     for(int it=0;it<6;it++){
@@ -517,13 +528,14 @@ void MultiControl::gainRLQR(const Eigen::Ref<const Eigen::MatrixXd>& F, const Ei
     //Use the factors to solve the linear system 
     gain = solver.solve(this->_ftLQR.right); 
 
-    //L = gain.middleRows<6>(19+NUMBER_OF_ROTORS);
-    K = gain.middleRows<NUMBER_OF_ROTORS>(25+NUMBER_OF_ROTORS);
-
     Eigen::MatrixXd blockF(6,7);
     blockF.leftCols<6>() = F.transpose();
     blockF.rightCols<1>() = this->_ftLQRConst.Ef.transpose();
+    
     this->_ftLQR.P = -gain.middleRows<6>(6+NUMBER_OF_ROTORS)+blockF*gain.middleRows<7>(12+NUMBER_OF_ROTORS);
+    blockF.resize(0,0);
+    //L = gain.middleRows<6>(19+NUMBER_OF_ROTORS);
+    K = gain.middleRows<NUMBER_OF_ROTORS>(25+NUMBER_OF_ROTORS);
 };
 
 
