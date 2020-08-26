@@ -933,22 +933,18 @@ void GCS_MAVLINK_Copter::handleMessage(const mavlink_message_t &msg)
         copter.ahrs.get_position(positionAux);
         homeAux = copter.ahrs.get_home();
         distanceAux = homeAux.get_distance_NED(positionAux);
-        distanceAux.y = -distanceAux.y;
-        distanceAux.z = -distanceAux.z;
 
         Vector3f velocityAux;
         copter.ahrs.get_velocity_NED(velocityAux);
-        velocityAux.y = -velocityAux.y;
-        velocityAux.z = -velocityAux.z;
 
         Eigen::Array3f position;
         Eigen::Array3f velocity;
-        position(0) = distanceAux.x;
-        position(1) = distanceAux.y;
-        position(2) = distanceAux.z;
-        velocity(0) = velocityAux.x;
-        velocity(1) = velocityAux.y;
-        velocity(2) = velocityAux.z;
+        position(0) = distanceAux.y;
+        position(1) = distanceAux.x;
+        position(2) = -distanceAux.z;
+        velocity(0) = velocityAux.y;
+        velocity(1) = velocityAux.x;
+        velocity(2) = -velocityAux.z;
         
         copter.polyNav.start(position,velocity,-copter.ahrs.get_yaw(),-copter.ahrs.get_yaw_rate_earth());
         //hal.console->printf("Waypoints: \n %s \n",copter.polyNav.getWaypointsString().data());        
