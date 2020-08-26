@@ -226,7 +226,37 @@ void Copter::fast_loop()
 {
     // update INS immediately to get current gyro data populated
     ins.update();
+    /*if (!copter.polyNav.isRunning()){
+        Location positionAux;
+        Location homeAux;
+        Vector3f distanceAux;
+        copter.ahrs.get_position(positionAux);
+        homeAux = copter.ahrs.get_home();
+        distanceAux = homeAux.get_distance_NED(positionAux);
 
+        Vector3f velocityAux;
+        copter.ahrs.get_velocity_NED(velocityAux);
+
+        Eigen::Array3f position;
+        Eigen::Array3f velocity;
+        position(0) = distanceAux.y;
+        position(1) = distanceAux.x;
+        position(2) = -distanceAux.z;
+        velocity(0) = velocityAux.y;
+        velocity(1) = velocityAux.x;
+        velocity(2) = -velocityAux.z;
+        
+        copter.polyNav.start(position,velocity,-copter.ahrs.get_yaw(),-copter.ahrs.get_yaw_rate_earth());
+    }
+    else{
+        copter.multicontrol.updateStates(copter.polyNav.getDesiredState());
+    }
+            // run low level rate controllers that only require IMU data
+        attitude_control->rate_controller_run();
+
+        // send outputs to the motors library immediately
+        motors_output();*/
+        
     if (!copter.polyNav.isRunning()){
         // run low level rate controllers that only require IMU data
         attitude_control->rate_controller_run();
@@ -322,6 +352,41 @@ void Copter::throttle_loop()
 // should be called at 10hz
 void Copter::update_batt_compass(void)
 {
+    /*std::cout   << copter.multicontrol.desiredRotorSpeeds()[1] << " ! " 
+                << copter.multicontrol.desiredRotorSpeeds()[2] << " ! " 
+                << copter.multicontrol.desiredRotorSpeeds()[3] << " ! "
+                << copter.multicontrol.desiredRotorSpeeds()[4] << " ! "
+                << copter.multicontrol.desiredRotorSpeeds()[5] << " ! "
+                << copter.multicontrol.desiredRotorSpeeds()[6] << " ! "
+                << copter.multicontrol.desiredRotorSpeeds()[7] << " ! "
+                << copter.multicontrol.desiredRotorSpeeds()[8] << " ! "
+                << copter.multicontrol.controlTimeStep() << std::endl;*/
+
+    /*this->multicontrol.dumpfile << "desiredForce: " << this->multicontrol._desiredForce(0) << " ! " << this->multicontrol._desiredForce(1) << " ! " << this->multicontrol._desiredForce(2) <<
+     " ! Tcd:" << this->multicontrol._Tcd(0) << " ! " << this->multicontrol._Tcd(1) << " ! " << this->multicontrol._Tcd(2) <<
+     " ! Ta:" << this->multicontrol._Ta(0) << " ! " << this->multicontrol._Ta(1) << " ! " << this->multicontrol._Ta(2) <<
+     " ! desiredPosition: " << this->multicontrol._desiredPosition(0) << " ! " << this->multicontrol._desiredPosition(1) << " ! " << this->multicontrol._desiredPosition(2) <<
+     " ! currentPosition: " << this->multicontrol._currentPosition(0) << " ! " << this->multicontrol._currentPosition(1) << " ! " << this->multicontrol._currentPosition(2) <<
+     " ! desiredVelocity: " << this->multicontrol._desiredVelocity(0) << " ! " << this->multicontrol._desiredVelocity(1) << " ! " << this->multicontrol._desiredVelocity(2) <<
+     " ! currentVelocity: " << this->multicontrol._currentVelocity(0) << " ! " << this->multicontrol._currentVelocity(1) << " ! " << this->multicontrol._currentVelocity(2) <<
+     " ! error: " << this->multicontrol._pidd.error(0) << " ! " << this->multicontrol._pidd.error(1) << " ! " << this->multicontrol._pidd.error(2) << 
+     " ! ierror:" << this->multicontrol._pidd.iError(0) << " ! " << this->multicontrol._pidd.iError(1) << " ! " << this->multicontrol._pidd.iError(2) << 
+     " ! derror:" << this->multicontrol._pidd.derror(0) << " ! " << this->multicontrol._pidd.derror(1) << " ! " << this->multicontrol._pidd.derror(2) <<
+     " ! dderror:" << this->multicontrol._pidd.dderror(0) << " ! " << this->multicontrol._pidd.dderror(1) << " ! " << this->multicontrol._pidd.dderror(2) << std::endl;*/
+
+     /*this->multicontrol.dumpfile << "desiredForce: " << this->multicontrol._desiredForce(0) << " ! " << this->multicontrol._desiredForce(1) << " ! " << this->multicontrol._desiredForce(2) <<
+     " ! Tcd: " << this->multicontrol._Tcd(0) << " ! " << this->multicontrol._Tcd(1) << " ! " << this->multicontrol._Tcd(2) << 
+     " ! ierror:" << this->multicontrol._Ta(0) << " ! " << this->multicontrol._Ta(1) << " ! " << this->multicontrol._Ta(2) << std::endl;*/
+
+    /*this->multicontrol.dumpfile << " qe: " << this->multicontrol.auxQuaternion.coeffs().transpose() << " w: " << this->multicontrol.auxQuaternion.w() << " x: " << this->multicontrol.auxQuaternion.x() << " y: " << this->multicontrol.auxQuaternion.y() << " z: " << this->multicontrol.auxQuaternion.z() << std::endl << 
+     " velFilter.desiredAngularVelocity: " << this->multicontrol._velFilter.desiredAngularVelocity << std::endl << 
+     " desiredAttitude: " << this->multicontrol._desiredAttitude.coeffs().transpose() << " w: " << this->multicontrol._desiredAttitude.w() << " x: " << this->multicontrol._desiredAttitude.x() << " y: " << this->multicontrol._desiredAttitude.y() << " z: " << this->multicontrol._desiredAttitude.z() << std::endl << 
+     " currentAttitude: " << this->multicontrol._currentAttitude.coeffs().transpose() << " w: " << this->multicontrol._currentAttitude.w() << " x: " << this->multicontrol._currentAttitude.x() << " y: " << this->multicontrol._currentAttitude.y() << " z: " << this->multicontrol._currentAttitude.z() << std::endl <<
+     " desiredAngularVelocity: " << this->multicontrol._velFilter.desiredAngularVelocity.transpose() << std::endl <<
+     " currentAngularVelocity: " << this->multicontrol._currentAngularVelocity.transpose() << std::endl;*/
+     /*if (copter.polyNav.isRunning()){
+         this->multicontrol.dumpfile << "omegaSquared: " << this->multicontrol.auxOmegaSquare(0) << " ! " << this->multicontrol.auxOmegaSquare(1) << " ! " << this->multicontrol.auxOmegaSquare(2) << " ! " << this->multicontrol.auxOmegaSquare(3) << " ! " << this->multicontrol.auxOmegaSquare(4) << " ! " << this->multicontrol.auxOmegaSquare(5) << " ! " << this->multicontrol.auxOmegaSquare(6) << " ! " << this->multicontrol.auxOmegaSquare(7) << std::endl;
+     }*/
     // read battery before compass because it may be used for motor interference compensation
     battery.read();
 

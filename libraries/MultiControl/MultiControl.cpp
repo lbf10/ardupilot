@@ -1,4 +1,5 @@
 # include "MultiControl.h"
+#include <ctime>
 
 MultiControl::MultiControl():
     // Links AHRS objects
@@ -15,9 +16,17 @@ bool MultiControl::init()
 {
     ///////////////////////
     /* Generic variables */
-
+    std::string filename_save;   
+    time_t now = std::time(0);
+    char* dt = std::ctime(&now);
+    filename_save.append("logs/log ");
+    filename_save.append(dt);
+    filename_save.pop_back();
+    filename_save.append(".txt");
+    dumpfile.open(filename_save);
     // Control time step
-    this->_controlTimeStep = 0.0025;
+    this->_controlTimeStep = CONTROL_TIME_STEP;
+    this->_measuredTimeStep = CONTROL_TIME_STEP;
     this->_lastCall = 0.0;
 
     // Weight vector
@@ -75,6 +84,11 @@ bool MultiControl::init()
     this->_piddConst.Ki << (double) PIDD_KI_X, (double) PIDD_KI_Y, (double) PIDD_KI_Z;
     this->_piddConst.Kd << (double) PIDD_KD_X, (double) PIDD_KD_Y, (double) PIDD_KD_Z;
     this->_piddConst.Kdd << (double) PIDD_KDD_X, (double) PIDD_KDD_Y, (double) PIDD_KDD_Z;
+
+    /* std::cout << "kp:" << this->_piddConst.Kp(0) << " ! " << this->_piddConst.Kp(1) << " ! " << this->_piddConst.Kp(2) << std::endl;
+    std::cout << "ki:" << this->_piddConst.Ki(0) << " ! " << this->_piddConst.Ki(1) << " ! " << this->_piddConst.Ki(2) << std::endl;
+    std::cout << "kd:" << this->_piddConst.Kd(0) << " ! " << this->_piddConst.Kd(1) << " ! " << this->_piddConst.Kd(2) << std::endl;
+    std::cout << "kdd:" << this->_piddConst.Kdd(0) << " ! " << this->_piddConst.Kdd(1) << " ! " << this->_piddConst.Kdd(2) << std::endl;*/
 
     // Initiate PIDD integral error
     this->_pidd.iError = Eigen::Vector3d::Zero();
@@ -248,10 +262,33 @@ bool MultiControl::updateStates(PolyNavigation::state desiredState){
     this->_currentAcceleration <<  (double) this->_vectorAux.y, (double) this->_vectorAux.x, (double) -this->_vectorAux.z;
     // Update current attitude and angular velocity from AHRS converting from NED/NED to ENU/ENU
     this->_ahrs.get_quat_body_to_ned(this->_quat);
-    this->_currentAttitude.w() = (double) -SQRT2_DIV2*(this->_quat.q1+this->_quat.q4);
+    /*this->_currentAttitude.w() = (double) -SQRT2_DIV2*(this->_quat.q1+this->_quat.q4);
     this->_currentAttitude.x() = (double) -SQRT2_DIV2*(this->_quat.q2+this->_quat.q3);
     this->_currentAttitude.y() = (double) SQRT2_DIV2*(this->_quat.q3-this->_quat.q2);
-    this->_currentAttitude.z() = (double) SQRT2_DIV2*(this->_quat.q4-this->_quat.q1);
+    this->_currentAttitude.z() = (double) SQRT2_DIV2*(this->_quat.q4-this->_quat.q1);*/
+
+    Eigen::Quaterniond quatAux;
+    Eigen::Quaterniond quatAux2;
+    Eigen::Quaterniond quatRoll;
+    Eigen::Quaterniond quatRotate;
+    quatAux.w() = this->_quat.q1;
+    quatAux.x() = this->_quat.q3;
+    quatAux.y() = this->_quat.q2;
+    quatAux.z() = -this->_quat.q4;
+
+    /*quatRotate.w() = (double) 0;
+    quatRotate.x() = (double) SQRT2_DIV2;
+    quatRotate.y() = (double) SQRT2_DIV2;
+    quatRotate.z() = (double) 0;
+
+    quatRoll.w() = (double) 0;
+    quatRoll.x() = (double) 1;
+    quatRoll.y() = (double) 0;
+    quatRoll.z() = (double) 0;
+
+    quatAux2 = quatRoll*quatAux*quatRotate;*/
+    this->_currentAttitude = quatAux;
+
     this->_currentAttitude.normalize();
     this->_vectorAux = _ahrs.get_gyro();
     this->_currentAngularVelocity << (double) this->_vectorAux.x, (double) -this->_vectorAux.y, (double) -this->_vectorAux.z;
@@ -259,7 +296,7 @@ bool MultiControl::updateStates(PolyNavigation::state desiredState){
     // Update control time step
     double thisCall = (double) AP_HAL::millis()/1000.0;
     if(this->_lastCall>=1e-60){
-        this->_controlTimeStep = 0.5*(this->_controlTimeStep+thisCall-this->_lastCall);
+        this->_measuredTimeStep = 0.5*(this->_measuredTimeStep+thisCall-this->_lastCall);
     }
     this->_lastCall = thisCall;
 
@@ -358,6 +395,8 @@ bool MultiControl::attitudeFTLQRControl(){
         qe.y() = -qe.y();
         qe.z() = -qe.z();
     }
+
+    this->auxQuaternion = qe;
             
     Eigen::MatrixXd qeVec(3,1);
     qeVec = qe.vec();

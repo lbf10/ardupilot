@@ -377,12 +377,50 @@ void ModeFT_LQR::run()
                     float *rotVoltages = copter.multicontrol.desiredRotorVoltages();
                     uint16_t pwm[NUMBER_OF_ROTORS];
                     for(int it=0;it<NUMBER_OF_ROTORS;it++){
-                        pwm[it] = (uint16_t) 1000*rotVoltages[it]/battVoltage+1000;
+                        pwm[it] = (uint16_t) 1000*abs(rotVoltages[it])/battVoltage+1000;
 
                         SRV_Channel::Aux_servo_function_t function = SRV_Channels::get_motor_function(it);
                         SRV_Channels::set_output_pwm(function, pwm[it]);
                     }
-                    // printf("%f %i %i %i %i %i %i %i %i \n",battVoltage,pwm[0],pwm[1],pwm[2],pwm[3],pwm[4],pwm[5],pwm[6],pwm[7]);
+                    
+                    copter.multicontrol.dumpfile << " battVoltage:," << battVoltage << " , " << 
+                                                    " PWM:," << 
+                                                    pwm[0] << " , " <<
+                                                    pwm[1] << " , " <<
+                                                    pwm[2] << " , " <<
+                                                    pwm[3] << " , " <<
+                                                    pwm[4] << " , " <<
+                                                    pwm[5] << " , " <<
+                                                    pwm[6] << " , " <<
+                                                    pwm[7] << " , " <<
+                                                    " time step:," <<  copter.multicontrol.measuredTimeStep() << " , " << 
+                                                    " desiredAttitude:," << 
+                                                    copter.multicontrol._desiredAttitude.w() << " , " <<
+                                                    copter.multicontrol._desiredAttitude.x() << " , " << 
+                                                    copter.multicontrol._desiredAttitude.y() << " , " << 
+                                                    copter.multicontrol._desiredAttitude.z() << " , " << 
+                                                    " velFilter.desiredAngularVelocity:," << 
+                                                    copter.multicontrol._velFilter.desiredAngularVelocity.x() << " , " <<
+                                                    copter.multicontrol._velFilter.desiredAngularVelocity.y() << " , " << 
+                                                    copter.multicontrol._velFilter.desiredAngularVelocity.z() << " , " <<  
+                                                    " currentAttitude (quat ENU):," << 
+                                                    copter.multicontrol._currentAttitude.w() << " , " <<
+                                                    copter.multicontrol._currentAttitude.x() << " , " << 
+                                                    copter.multicontrol._currentAttitude.y() << " , " << 
+                                                    copter.multicontrol._currentAttitude.z() << " , " <<  
+                                                    " currentAttitude (ahrs euler NED):," << 
+                                                    copter.ahrs.get_roll() << " , " <<
+                                                    copter.ahrs.get_pitch() << " , " << 
+                                                    copter.ahrs.get_yaw() << " , " << 
+                                                    " currentAngularVelocity:," << 
+                                                    copter.multicontrol._currentAngularVelocity.x() << " , " << 
+                                                    copter.multicontrol._currentAngularVelocity.y() << " , " << 
+                                                    copter.multicontrol._currentAngularVelocity.z() << " , " <<  
+                                                    " qe:, " << 
+                                                    copter.multicontrol.auxQuaternion.w() << " , " <<
+                                                    copter.multicontrol.auxQuaternion.x() << " , " << 
+                                                    copter.multicontrol.auxQuaternion.y() << " , " << 
+                                                    copter.multicontrol.auxQuaternion.z() << std::endl;
 
                     // push all channels
                     SRV_Channels::push();
@@ -393,6 +431,10 @@ void ModeFT_LQR::run()
             }
             break;
         }      
+        /*{
+            pos_control_run();
+            break;
+        }*/
 
     case Guided_Velocity:
         // run velocity controller
