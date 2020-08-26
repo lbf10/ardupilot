@@ -19,6 +19,7 @@
 #include <cmath>
 #include <string>
 #include <iostream>
+#include <fstream>
 
 #define SQRT2_DIV2 0.707106781
 
@@ -51,54 +52,56 @@
 #define ROTOR_IO 0.6/10.0
 #define ROTOR_MAX_VOLTAGE 22.0
 
-#define ROTOR_POSITION 0.34374,  0.34245, 0.0143, \
-                       -0.34100,  0.34213, 0.0143, \
-                       -0.34068, -0.34262, 0.0143, \
-                        0.34407, -0.34229, 0.0143, \
-                        0.33898,  0.33769, 0.0913, \
-                       -0.33624,  0.33736, 0.0913, \
-                       -0.33591, -0.33785, 0.0913, \
-                        0.33930, -0.33753, 0.0913
+#define ROTOR_POSITION 0.33920, -0.33742, 0.09298, \
+                       0.33887, 0.33758, 0.09298, \
+                       -0.33613, 0.33726, 0.09298, \
+                        -0.33581, -0.33775, 0.09298, \
+                        0.34364, 0.34235, 0.01597, \
+                       0.34396, -0.34219, 0.01597, \
+                       -0.34057, -0.34251, 0.01597, \
+                        -0.34090, 0.34202, 0.01597
 
-#define ROTOR_ORIENTATION -0.061628417, -0.061628417, 0.996194698, \
-                           0.061628417, -0.061628417, 0.996194698, \
-                           0.061628417,  0.061628417, 0.996194698, \
-                          -0.061628417,  0.061628417, 0.996194698, \
-                          -0.061628417, -0.061628417, 0.996194698, \
-                           0.061628417, -0.061628417, 0.996194698, \
-                           0.061628417,  0.061628417, 0.996194698, \
-                          -0.061628417,  0.061628417, 0.996194698 
+#define ROTOR_ORIENTATION -6.179033021212912e-02, 6.146607671042632e-02, 9.961946980917455e-01, \
+                           -6.174583072871852e-02, -6.151077857998878e-02, 9.961946980917455e-01, \
+                           6.152491288718258e-02, -6.173174700363311e-02, 9.961946980917455e-01, \
+                          6.145065852146369e-02, 6.180566366583593e-02, 9.961946980917455e-01, \
+                          -6.174419940539115e-02, -6.151241609369010e-02, 9.961946980917455e-01, \
+                           -6.178718847226844e-02, 6.146923486255825e-02, 9.961946980917455e-01, \
+                           6.145313940784528e-02, 6.180319693038461e-02, 9.961946980917455e-01, \
+                          6.152726235862697e-02, -6.172940531504134e-02, 9.961946980917455e-01
 
-#define ROTOR_DIRECTION 1, -1, 1, -1, -1, 1, -1, 1
+#define ROTOR_DIRECTION 1, -1, 1, -1, 1, -1, 1, -1
 
 //////////////////////////////////////
 /* General variables default values */
-#define VELOCITY_FILTER_GAIN_X 0.0
-#define VELOCITY_FILTER_GAIN_Y 0.0 
-#define VELOCITY_FILTER_GAIN_Z 0.9
+#define VELOCITY_FILTER_GAIN_X 0.893982849632920  
+#define VELOCITY_FILTER_GAIN_Y 0.866909075664830
+#define VELOCITY_FILTER_GAIN_Z 0.713328100616703
+
+#define CONTROL_TIME_STEP 1/400.0
 
 ////////////////////////////////////////////////
 /* Position PIDD configuration default values */
-#define PIDD_KP_X 1.0
-#define PIDD_KP_Y 1.0
-#define PIDD_KP_Z 1.0
-#define PIDD_KI_X 1.0
-#define PIDD_KI_Y 1.0
-#define PIDD_KI_Z 1.0
-#define PIDD_KD_X 1.0
-#define PIDD_KD_Y 1.0
-#define PIDD_KD_Z 1.0
-#define PIDD_KDD_X 1.0
-#define PIDD_KDD_Y 1.0
-#define PIDD_KDD_Z 1.0
+#define PIDD_KP_X 20.0
+#define PIDD_KP_Y 20.0
+#define PIDD_KP_Z 15.0
+#define PIDD_KI_X 4.0
+#define PIDD_KI_Y 4.0
+#define PIDD_KI_Z 4.0
+#define PIDD_KD_X 20.0
+#define PIDD_KD_Y 20.0
+#define PIDD_KD_Z 12.0
+#define PIDD_KDD_X 0.0
+#define PIDD_KDD_Y 0.0
+#define PIDD_KDD_Z 0.0
 
 /////////////////////////////////////////
 /* FT-LQR configuration default values */
-#define FTLQR_CONFIG_P_DIAG 5000000, 5000000, 5000000, 51735772.1962334, 13237193.7735967, 5000000
-#define FTLQR_CONFIG_Q_DIAG 136440926.976679, 165320359.177077, 338043223.930318, 811714985.079850, 470697017.566526, 5000000
-#define FTLQR_CONFIG_R_DIAG 582.052408422866, 1.0e-05, 1.0e-05, 1.0e-05, 169.710172090567, 1.0e-05, 1.0e-05, 42.7977897114965
-#define FTLQR_CONFIG_EF_ROW 64242.0816790375, 35819.4947577920, 10, 56082.0041098398, 0, 0
-#define FTLQR_CONFIG_EG_ROW 15572.0046803445, 36270.6230228744, 1000, 1000, 1000, 1000, 1000, 1000
+#define FTLQR_CONFIG_P_DIAG 5.0e+10, 5.0e+10, 5.0e+05, 5.0e+04, 5.0e+04, 5.0e+09
+#define FTLQR_CONFIG_Q_DIAG 5.0e+10, 5.0e+10, 5.0e+05, 5.0e+04, 5.0e+04, 5.0e+09
+#define FTLQR_CONFIG_R_DIAG 2.0000e-05, 2.0000e-05, 2.0000e-05, 2.0000e-05, 2.0000e-05, 2.0000e-05, 2.0000e-05, 2.0000e-05
+#define FTLQR_CONFIG_EF_ROW 1, 1, 1, 1, 1, 1
+#define FTLQR_CONFIG_EG_ROW 1, 1, 1, 1, 1, 1, 1, 1
 #define FTLQR_CONFIG_H_COL 1, 1, 1, 1, 1, 1
 
 #define FTLQR_CONFIG_MU 1.0e20
@@ -111,9 +114,12 @@
 
 class MultiControl
 {
-private:
+    //private
+public:
     ///////////////////////////////////////////
     /* Variables to define on initialization */
+    std::ofstream dumpfile;
+    Eigen::Quaterniond auxQuaternion;
 
     /* Multicopter configuration */
     Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> _rotorPosition;
@@ -175,6 +181,7 @@ private:
     // Other
     double _lastCall;
     double _controlTimeStep;
+    double _measuredTimeStep;
     Eigen::Quaterniond _quaternionError;
 
     // Velocity filter related
@@ -267,6 +274,7 @@ public:
     float* desiredRotorSpeeds();
     float* desiredRotorVoltages();
     double controlTimeStep(){return _controlTimeStep;};
+    double measuredTimeStep(){return _measuredTimeStep;};
 };
  
 #endif
