@@ -114,7 +114,7 @@ bool MultiControl::init()
     
     // Zero velocity filter variables
     this->_velFilter.Wbe.setZero();
-    this->_velFilter.angularVelocity.setZero();
+    this->_velFilter.previousAngularVelocity.setZero();
     this->_velFilter.desiredAngularVelocity.setZero();
 
     // Zero rotor states
@@ -262,35 +262,14 @@ bool MultiControl::updateStates(PolyNavigation::state desiredState){
     this->_currentAcceleration <<  (double) this->_vectorAux.y, (double) this->_vectorAux.x, (double) -this->_vectorAux.z;
     // Update current attitude and angular velocity from AHRS converting from NED/NED to ENU/ENU
     this->_ahrs.get_quat_body_to_ned(this->_quat);
-    /*this->_currentAttitude.w() = (double) -SQRT2_DIV2*(this->_quat.q1+this->_quat.q4);
+    this->_currentAttitude.w() = (double) -SQRT2_DIV2*(this->_quat.q1+this->_quat.q4);
     this->_currentAttitude.x() = (double) -SQRT2_DIV2*(this->_quat.q2+this->_quat.q3);
     this->_currentAttitude.y() = (double) SQRT2_DIV2*(this->_quat.q3-this->_quat.q2);
-    this->_currentAttitude.z() = (double) SQRT2_DIV2*(this->_quat.q4-this->_quat.q1);*/
-
-    Eigen::Quaterniond quatAux;
-    Eigen::Quaterniond quatAux2;
-    Eigen::Quaterniond quatRoll;
-    Eigen::Quaterniond quatRotate;
-    quatAux.w() = this->_quat.q1;
-    quatAux.x() = this->_quat.q3;
-    quatAux.y() = this->_quat.q2;
-    quatAux.z() = -this->_quat.q4;
-
-    /*quatRotate.w() = (double) 0;
-    quatRotate.x() = (double) SQRT2_DIV2;
-    quatRotate.y() = (double) SQRT2_DIV2;
-    quatRotate.z() = (double) 0;
-
-    quatRoll.w() = (double) 0;
-    quatRoll.x() = (double) 1;
-    quatRoll.y() = (double) 0;
-    quatRoll.z() = (double) 0;
-
-    quatAux2 = quatRoll*quatAux*quatRotate;*/
-    this->_currentAttitude = quatAux;
+    this->_currentAttitude.z() = (double) SQRT2_DIV2*(this->_quat.q4-this->_quat.q1);
 
     this->_currentAttitude.normalize();
     this->_vectorAux = _ahrs.get_gyro();
+    this->_velFilter.previousAngularVelocity = this->_currentAngularVelocity;
     this->_currentAngularVelocity << (double) this->_vectorAux.x, (double) -this->_vectorAux.y, (double) -this->_vectorAux.z;
 
     // Update control time step
@@ -381,9 +360,8 @@ bool MultiControl::attitudeFTLQRControl(){
     Eigen::Vector3d desiredAngularAcceleration;
 
     previousWbe = this->_velFilter.Wbe;
-    previousAngularVelocity = this->_velFilter.angularVelocity;
+    previousAngularVelocity = this->_velFilter.previousAngularVelocity;
     angularVelocity = this->_currentAngularVelocity;
-    this->_velFilter.angularVelocity = this->_currentAngularVelocity;
        
     // Quaternion error
     qe.w() = + this->_desiredAttitude.w()*this->_currentAttitude.w() + this->_desiredAttitude.x()*this->_currentAttitude.x() + this->_desiredAttitude.y()*this->_currentAttitude.y() + this->_desiredAttitude.z()*this->_currentAttitude.z();
