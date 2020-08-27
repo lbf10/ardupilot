@@ -2,6 +2,10 @@
 
 PolyNavigation::PolyNavigation(/* args */)
 {
+    this->_desiredState.position.setZero();
+    this->_desiredState.velocity.setZero();
+    this->_desiredState.acceleration.setZero();
+    this->_desiredState.yaw = 0.0;
 }
 
 PolyNavigation::~PolyNavigation()

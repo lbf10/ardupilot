@@ -374,10 +374,14 @@ void ModeFT_LQR::run()
                     SRV_Channels::cork();
 
                     float battVoltage = copter.battery.voltage();
-                    float *rotVoltages = copter.multicontrol.desiredRotorVoltages();
+                    //float *rotVoltages = copter.multicontrol.desiredRotorVoltages();
+                    float *rotSpeeds = copter.multicontrol.desiredRotorSpeeds();
+                    float throttle[NUMBER_OF_ROTORS];
                     uint16_t pwm[NUMBER_OF_ROTORS];
                     for(int it=0;it<NUMBER_OF_ROTORS;it++){
-                        pwm[it] = (uint16_t) 1000*abs(rotVoltages[it])/battVoltage+1000;
+                        throttle[it] = abs(rotSpeeds[it]);
+                        throttle[it] = -1.0249277445252e-6*throttle[it]*throttle[it]+0.002658375700044*throttle[it]-0.413078665036508;
+                        pwm[it] = (uint16_t) 1000*throttle[it]+1000;
 
                         SRV_Channel::Aux_servo_function_t function = SRV_Channels::get_motor_function(it);
                         SRV_Channels::set_output_pwm(function, pwm[it]);
@@ -393,7 +397,37 @@ void ModeFT_LQR::run()
                                                     pwm[5] << " , " <<
                                                     pwm[6] << " , " <<
                                                     pwm[7] << " , " <<
+                                                    " throttle:," << 
+                                                    throttle[0] << " , " <<
+                                                    throttle[1] << " , " <<
+                                                    throttle[2] << " , " <<
+                                                    throttle[3] << " , " <<
+                                                    throttle[4] << " , " <<
+                                                    throttle[5] << " , " <<
+                                                    throttle[6] << " , " <<
+                                                    throttle[7] << " , " <<
+                                                    " rotSpeeds:," << 
+                                                    rotSpeeds[0] << " , " <<
+                                                    rotSpeeds[1] << " , " <<
+                                                    rotSpeeds[2] << " , " <<
+                                                    rotSpeeds[3] << " , " <<
+                                                    rotSpeeds[4] << " , " <<
+                                                    rotSpeeds[5] << " , " <<
+                                                    rotSpeeds[6] << " , " <<
+                                                    rotSpeeds[7] << " , " <<
                                                     " time step:," <<  copter.multicontrol.measuredTimeStep() << " , " << 
+                                                    " currentPosition:," << 
+                                                    copter.multicontrol._currentPosition.x() << " , " << 
+                                                    copter.multicontrol._currentPosition.y() << " , " << 
+                                                    copter.multicontrol._currentPosition.z() << " , " << 
+                                                    " desiredPosition:," << 
+                                                    copter.multicontrol._desiredPosition.x() << " , " << 
+                                                    copter.multicontrol._desiredPosition.y() << " , " << 
+                                                    copter.multicontrol._desiredPosition.z() << " , " << 
+                                                    " desiredForce:," << 
+                                                    copter.multicontrol._desiredForce.x() << " , " << 
+                                                    copter.multicontrol._desiredForce.y() << " , " << 
+                                                    copter.multicontrol._desiredForce.z() << " , " << 
                                                     " desiredAttitude:," << 
                                                     copter.multicontrol._desiredAttitude.w() << " , " <<
                                                     copter.multicontrol._desiredAttitude.x() << " , " << 
@@ -427,6 +461,8 @@ void ModeFT_LQR::run()
                 }
             }
             else{
+                // Update inertial states
+                if(!copter.multicontrol.updateStates(copter.polyNav.getDesiredState())){};
                 pos_control_run();
             }
             break;

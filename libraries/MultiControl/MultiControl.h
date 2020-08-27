@@ -187,7 +187,7 @@ public:
     // Velocity filter related
     struct velocityFilterRelated {
         Eigen::Vector3d Wbe;
-        Eigen::Vector3d angularVelocity;
+        Eigen::Vector3d previousAngularVelocity;
         Eigen::Vector3d desiredAngularVelocity;
     } _velFilter;
 
