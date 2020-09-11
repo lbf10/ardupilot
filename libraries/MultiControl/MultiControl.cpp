@@ -1,6 +1,79 @@
 # include "MultiControl.h"
 #include <ctime>
 
+//////////////////////////////////////////////
+/* Multicopter configuration default values */
+#define MASS    6.015 
+#define MOMENTS_OF_INERTIA_XX 0.3143978800
+#define MOMENTS_OF_INERTIA_YY 0.3122127800
+#define MOMENTS_OF_INERTIA_ZZ 0.5557912400
+#define PRODUCTS_OF_INERTIA_XY 0.0000861200
+#define PRODUCTS_OF_INERTIA_XZ -0.0014397600
+#define PRODUCTS_OF_INERTIA_YZ 0.0002368800
+#define MAIN_TRANSLATIONAL_FRICTION_X 0.25
+#define MAIN_TRANSLATIONAL_FRICTION_Y 0.25
+#define MAIN_TRANSLATIONAL_FRICTION_Z 0.25
+#define ROTOR_INERTIA 0.00047935
+#define ROTOR_LIFT_COEFF 6.97e-5
+#define ROTOR_DRAG_COEFF 1.033e-6
+#define ROTOR_MAX_SPEED 729.0
+#define ROTOR_MAX_SPEED_SQUARED (double) ROTOR_MAX_SPEED*ROTOR_MAX_SPEED
+#define ROTOR_MIN_SPEED 0.0
+#define ROTOR_MIN_SPEED_SQUARED (double) ROTOR_MIN_SPEED*ROTOR_MIN_SPEED
+#define ROTOR_OPERATING_POINT 340.0
+#define ROTOR_OPERATING_POINT_SQUARED (double) 0.5*(ROTOR_MAX_SPEED_SQUARED+ROTOR_MIN_SPEED_SQUARED)
+#define ROTOR_RM 0.0975
+#define ROTOR_L 0.0033
+#define ROTOR_KT 0.02498
+#define ROTOR_KV 340.0
+#define ROTOR_IO 0.6/10.0
+#define ROTOR_MAX_VOLTAGE 22.0
+
+#define ROTOR_POSITION 0.33920, -0.33742, 0.09298, \
+                       0.33887, 0.33758, 0.09298, \
+                       -0.33613, 0.33726, 0.09298, \
+                        -0.33581, -0.33775, 0.09298, \
+                        0.34364, 0.34235, 0.01597, \
+                       0.34396, -0.34219, 0.01597, \
+                       -0.34057, -0.34251, 0.01597, \
+                        -0.34090, 0.34202, 0.01597
+
+#define ROTOR_ORIENTATION -6.179033021212912e-02, 6.146607671042632e-02, 9.961946980917455e-01, \
+                           -6.174583072871852e-02, -6.151077857998878e-02, 9.961946980917455e-01, \
+                           6.152491288718258e-02, -6.173174700363311e-02, 9.961946980917455e-01, \
+                          6.145065852146369e-02, 6.180566366583593e-02, 9.961946980917455e-01, \
+                          -6.174419940539115e-02, -6.151241609369010e-02, 9.961946980917455e-01, \
+                           -6.178718847226844e-02, 6.146923486255825e-02, 9.961946980917455e-01, \
+                           6.145313940784528e-02, 6.180319693038461e-02, 9.961946980917455e-01, \
+                          6.152726235862697e-02, -6.172940531504134e-02, 9.961946980917455e-01
+
+#define ROTOR_DIRECTION 1, -1, 1, -1, 1, -1, 1, -1
+
+//////////////////////////////////////
+/* General variables default values */
+#define VELOCITY_FILTER_GAIN_X 0.999  
+#define VELOCITY_FILTER_GAIN_Y 0.999
+#define VELOCITY_FILTER_GAIN_Z 0.999
+
+#define CONTROL_TIME_STEP 1/400.0
+
+/////////////////////////////////////////
+/* FT-LQR configuration default values */
+#define FTLQR_CONFIG_P_DIAG 5.0e+10, 5.0e+10, 5.0e+05, 5.0e+04, 5.0e+04, 5.0e+09
+#define FTLQR_CONFIG_Q_DIAG 5.0e+10, 5.0e+10, 5.0e+05, 5.0e+04, 5.0e+04, 5.0e+09
+#define FTLQR_CONFIG_R_DIAG 2.0000e-05, 2.0000e-05, 2.0000e-05, 2.0000e-05, 2.0000e-05, 2.0000e-05, 2.0000e-05, 2.0000e-05
+#define FTLQR_CONFIG_EF_ROW 1, 1, 1, 1, 1, 1
+#define FTLQR_CONFIG_EG_ROW 1, 1, 1, 1, 1, 1, 1, 1
+#define FTLQR_CONFIG_H_COL 1, 1, 1, 1, 1, 1
+
+#define FTLQR_CONFIG_MU 1.0e20
+#define FTLQR_CONFIG_ALPHA 1.5
+
+//////////////////////////////////////////////////////////////////
+/* Passive NMAC Control allocation configuration default values */
+#define CA_WM 1.0
+#define CA_WA 0.0
+
 MultiControl::MultiControl():
     // Links AHRS objects
     _ahrs(AP::ahrs())
@@ -80,10 +153,10 @@ bool MultiControl::init()
     /* Position PIDD related */
 
     // Initiate PIDD gains
-    this->_piddConst.Kp << (double) PIDD_KP_X, (double) PIDD_KP_Y, (double) PIDD_KP_Z;
-    this->_piddConst.Ki << (double) PIDD_KI_X, (double) PIDD_KI_Y, (double) PIDD_KI_Z;
-    this->_piddConst.Kd << (double) PIDD_KD_X, (double) PIDD_KD_Y, (double) PIDD_KD_Z;
-    this->_piddConst.Kdd << (double) PIDD_KDD_X, (double) PIDD_KDD_Y, (double) PIDD_KDD_Z;
+    this->_piddConst.Kp << (double) _PIDD_KP_X, (double) _PIDD_KP_Y, (double) _PIDD_KP_Z;
+    this->_piddConst.Ki << (double) _PIDD_KI_X, (double) _PIDD_KI_Y, (double) _PIDD_KI_Z;
+    this->_piddConst.Kd << (double) _PIDD_KD_X, (double) _PIDD_KD_Y, (double) _PIDD_KD_Z;
+    this->_piddConst.Kdd << (double) _PIDD_KDD_X, (double) _PIDD_KDD_Y, (double) _PIDD_KDD_Z;
 
     /* std::cout << "kp:" << this->_piddConst.Kp(0) << " ! " << this->_piddConst.Kp(1) << " ! " << this->_piddConst.Kp(2) << std::endl;
     std::cout << "ki:" << this->_piddConst.Ki(0) << " ! " << this->_piddConst.Ki(1) << " ! " << this->_piddConst.Ki(2) << std::endl;
@@ -116,12 +189,15 @@ bool MultiControl::init()
     this->_velFilter.Wbe.setZero();
     this->_velFilter.previousAngularVelocity.setZero();
     this->_velFilter.desiredAngularVelocity.setZero();
+    this->_velFilter.desiredAngularAcceleration.setZero();
 
     // Zero rotor states
     this->_currentRotorSpeeds.setZero();
 
     ////////////////////
     /* FT-LQR related */
+    this->_ftLQR.gainRotorSpeeds.setZero();
+    this->_ftLQR.desiredGainAngularAcceleration.setZero();
 
     // Calculates ssB
     this->_ftLQRConst.ssB.topRows<3>() = -this->_inertia.inverse()*this->_Mt;
@@ -383,6 +459,7 @@ bool MultiControl::attitudeFTLQRControl(){
     this->_velFilter.Wbe = this->_velFilter.desiredAngularVelocity-angularVelocity;
     dWbe = (this->_velFilter.Wbe-previousWbe)/this->_controlTimeStep;
     desiredAngularAcceleration = (dWbe+angularAcceleration);
+    this->_velFilter.desiredAngularAcceleration = desiredAngularAcceleration;
     Eigen::MatrixXd torqueAux(3,1);
     torqueAux.setZero();
     for(int it=0;it<NUMBER_OF_ROTORS;it++){
@@ -420,10 +497,13 @@ bool MultiControl::attitudeFTLQRControl(){
     Eigen::MatrixXd K(NUMBER_OF_ROTORS,6);
     gainRLQR(F,G,K);
 
-    Eigen::MatrixXd u(NUMBER_OF_ROTORS,1);
-    u << K*x_e;
+    Eigen::MatrixXd gainSpeeds(NUMBER_OF_ROTORS,1);
+    //Eigen::MatrixXd gainSpeeds_sqrt(NUMBER_OF_ROTORS,1);
+    gainSpeeds << K*x_e;
+    //gainSpeeds_sqrt << (this->_rotorDirection.array()*gainSpeeds.array().sqrt()).matrix();
+    //this->_ftLQR.gainRotorSpeeds = gainSpeeds_sqrt;
     //K.resize(0,0);
-    this->_desiredTorque = -this->_inertia*(this->_ftLQRConst.ssB.topRows<3>()*u-desiredAngularAcceleration+auxA*this->_velFilter.desiredAngularVelocity);  
+    this->_desiredTorque = -this->_inertia*(this->_ftLQRConst.ssB.topRows<3>()*gainSpeeds-desiredAngularAcceleration+auxA*this->_velFilter.desiredAngularVelocity);  
     return true;
 };
 
@@ -704,3 +784,68 @@ void MultiControl::gainRLQR(Eigen::Ref<Eigen::MatrixXd> F, Eigen::Ref<Eigen::Mat
         }
         return returnValue;
     };
+
+const AP_Param::GroupInfo MultiControl::var_info[] = {
+    // @Param: KP_X
+    // @DisplayName: PIDD KP X
+    // @Description: PIDD controller P gain in the X axis.
+    // @Range: -1000 1000
+    AP_GROUPINFO("KP_X", 0, MultiControl, _PIDD_KP_X, PIDD_KP_X),
+    // @Param: KP_Y
+    // @DisplayName: PIDD KP Y
+    // @Description: PIDD controller P gain in the Y axis.
+    // @Range: -1000 1000
+    AP_GROUPINFO("KP_Y", 1, MultiControl, _PIDD_KP_Y, PIDD_KP_Y),
+    // @Param: KP_Z
+    // @DisplayName: PIDD KP Z
+    // @Description: PIDD controller P gain in the Z axis.
+    // @Range: -1000 1000
+    AP_GROUPINFO("KP_Z", 2, MultiControl, _PIDD_KP_Z, PIDD_KP_Z),
+    // @Param: KI_X
+    // @DisplayName: PIDD KI X
+    // @Description: PIDD controller I gain in the X axis.
+    // @Range: -1000 1000
+    AP_GROUPINFO("KI_X", 3, MultiControl, _PIDD_KI_X, PIDD_KI_X),
+    // @Param: KI_Y
+    // @DisplayName: PIDD KI Y
+    // @Description: PIDD controller I gain in the Y axis.
+    // @Range: -1000 1000
+    AP_GROUPINFO("KI_Y", 4, MultiControl, _PIDD_KI_Y, PIDD_KI_Y),
+    // @Param: KI_Z
+    // @DisplayName: PIDD KI Z
+    // @Description: PIDD controller I gain in the Z axis.
+    // @Range: -1000 1000
+    AP_GROUPINFO("KI_Z", 5, MultiControl, _PIDD_KI_Z, PIDD_KI_Z),
+    // @Param: KD_X
+    // @DisplayName: PIDD KD X
+    // @Description: PIDD controller D gain in the X axis.
+    // @Range: -1000 1000
+    AP_GROUPINFO("KD_X", 6, MultiControl, _PIDD_KD_X, PIDD_KD_X),
+    // @Param: KD_Y
+    // @DisplayName: PIDD KD Y
+    // @Description: PIDD controller D gain in the Y axis.
+    // @Range: -1000 1000
+    AP_GROUPINFO("KD_Y", 7, MultiControl, _PIDD_KD_Y, PIDD_KD_Y),
+    // @Param: KD_Z
+    // @DisplayName: PIDD KD Z
+    // @Description: PIDD controller D gain in the Z axis.
+    // @Range: -1000 1000
+    AP_GROUPINFO("KD_Z", 8, MultiControl, _PIDD_KD_Z, PIDD_KD_Z),
+    // @Param: KDD_X
+    // @DisplayName: PIDD KDD X
+    // @Description: PIDD controller DD gain in the X axis.
+    // @Range: -1000 1000
+    AP_GROUPINFO("KDD_X", 9, MultiControl, _PIDD_KDD_X, PIDD_KDD_X),
+    // @Param: KDD_Y
+    // @DisplayName: PIDD KDD Y
+    // @Description: PIDD controller DD gain in the Y axis.
+    // @Range: -1000 1000
+    AP_GROUPINFO("KDD_Y", 10, MultiControl, _PIDD_KDD_Y, PIDD_KDD_Y),
+    // @Param: KDD_Z
+    // @DisplayName: PIDD KDD Z
+    // @Description: PIDD controller DD gain in the Z axis.
+    // @Range: -1000 1000
+    AP_GROUPINFO("KDD_Z", 11, MultiControl, _PIDD_KDD_Z, PIDD_KDD_Z),
+
+    AP_GROUPEND
+};

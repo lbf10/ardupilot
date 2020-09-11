@@ -23,94 +23,22 @@
 
 #define SQRT2_DIV2 0.707106781
 
-//////////////////////////////////////////////
-/* Multicopter configuration default values */
-#define MASS    6.015 
-#define MOMENTS_OF_INERTIA_XX 0.3143978800
-#define MOMENTS_OF_INERTIA_YY 0.3122127800
-#define MOMENTS_OF_INERTIA_ZZ 0.5557912400
-#define PRODUCTS_OF_INERTIA_XY 0.0000861200
-#define PRODUCTS_OF_INERTIA_XZ -0.0014397600
-#define PRODUCTS_OF_INERTIA_YZ 0.0002368800
-#define MAIN_TRANSLATIONAL_FRICTION_X 0.25
-#define MAIN_TRANSLATIONAL_FRICTION_Y 0.25
-#define MAIN_TRANSLATIONAL_FRICTION_Z 0.25
 #define NUMBER_OF_ROTORS 8
-#define ROTOR_INERTIA 0.00047935
-#define ROTOR_LIFT_COEFF 6.97e-5
-#define ROTOR_DRAG_COEFF 1.033e-6
-#define ROTOR_MAX_SPEED 729.0
-#define ROTOR_MAX_SPEED_SQUARED (double) ROTOR_MAX_SPEED*ROTOR_MAX_SPEED
-#define ROTOR_MIN_SPEED 0.0
-#define ROTOR_MIN_SPEED_SQUARED (double) ROTOR_MIN_SPEED*ROTOR_MIN_SPEED
-#define ROTOR_OPERATING_POINT 340.0
-#define ROTOR_OPERATING_POINT_SQUARED (double) 0.5*(ROTOR_MAX_SPEED_SQUARED+ROTOR_MIN_SPEED_SQUARED)
-#define ROTOR_RM 0.0975
-#define ROTOR_L 0.0033
-#define ROTOR_KT 0.02498
-#define ROTOR_KV 340.0
-#define ROTOR_IO 0.6/10.0
-#define ROTOR_MAX_VOLTAGE 22.0
-
-#define ROTOR_POSITION 0.33920, -0.33742, 0.09298, \
-                       0.33887, 0.33758, 0.09298, \
-                       -0.33613, 0.33726, 0.09298, \
-                        -0.33581, -0.33775, 0.09298, \
-                        0.34364, 0.34235, 0.01597, \
-                       0.34396, -0.34219, 0.01597, \
-                       -0.34057, -0.34251, 0.01597, \
-                        -0.34090, 0.34202, 0.01597
-
-#define ROTOR_ORIENTATION -6.179033021212912e-02, 6.146607671042632e-02, 9.961946980917455e-01, \
-                           -6.174583072871852e-02, -6.151077857998878e-02, 9.961946980917455e-01, \
-                           6.152491288718258e-02, -6.173174700363311e-02, 9.961946980917455e-01, \
-                          6.145065852146369e-02, 6.180566366583593e-02, 9.961946980917455e-01, \
-                          -6.174419940539115e-02, -6.151241609369010e-02, 9.961946980917455e-01, \
-                           -6.178718847226844e-02, 6.146923486255825e-02, 9.961946980917455e-01, \
-                           6.145313940784528e-02, 6.180319693038461e-02, 9.961946980917455e-01, \
-                          6.152726235862697e-02, -6.172940531504134e-02, 9.961946980917455e-01
-
-#define ROTOR_DIRECTION 1, -1, 1, -1, 1, -1, 1, -1
-
-//////////////////////////////////////
-/* General variables default values */
-#define VELOCITY_FILTER_GAIN_X 0.893982849632920  
-#define VELOCITY_FILTER_GAIN_Y 0.866909075664830
-#define VELOCITY_FILTER_GAIN_Z 0.713328100616703
-
-#define CONTROL_TIME_STEP 1/400.0
 
 ////////////////////////////////////////////////
 /* Position PIDD configuration default values */
 #define PIDD_KP_X 20.0
 #define PIDD_KP_Y 20.0
-#define PIDD_KP_Z 15.0
+#define PIDD_KP_Z 20.0
 #define PIDD_KI_X 4.0
 #define PIDD_KI_Y 4.0
 #define PIDD_KI_Z 4.0
-#define PIDD_KD_X 20.0
-#define PIDD_KD_Y 20.0
-#define PIDD_KD_Z 12.0
-#define PIDD_KDD_X 0.0
-#define PIDD_KDD_Y 0.0
-#define PIDD_KDD_Z 0.0
-
-/////////////////////////////////////////
-/* FT-LQR configuration default values */
-#define FTLQR_CONFIG_P_DIAG 5.0e+10, 5.0e+10, 5.0e+05, 5.0e+04, 5.0e+04, 5.0e+09
-#define FTLQR_CONFIG_Q_DIAG 5.0e+10, 5.0e+10, 5.0e+05, 5.0e+04, 5.0e+04, 5.0e+09
-#define FTLQR_CONFIG_R_DIAG 2.0000e-05, 2.0000e-05, 2.0000e-05, 2.0000e-05, 2.0000e-05, 2.0000e-05, 2.0000e-05, 2.0000e-05
-#define FTLQR_CONFIG_EF_ROW 1, 1, 1, 1, 1, 1
-#define FTLQR_CONFIG_EG_ROW 1, 1, 1, 1, 1, 1, 1, 1
-#define FTLQR_CONFIG_H_COL 1, 1, 1, 1, 1, 1
-
-#define FTLQR_CONFIG_MU 1.0e20
-#define FTLQR_CONFIG_ALPHA 1.5
-
-//////////////////////////////////////////////////////////////////
-/* Passive NMAC Control allocation configuration default values */
-#define CA_WM 1.0
-#define CA_WA 0.0
+#define PIDD_KD_X 15.0
+#define PIDD_KD_Y 15.0
+#define PIDD_KD_Z 15.0
+#define PIDD_KDD_X 1.0
+#define PIDD_KDD_Y 1.0
+#define PIDD_KDD_Z 1.0
 
 class MultiControl
 {
@@ -189,6 +117,7 @@ public:
         Eigen::Vector3d Wbe;
         Eigen::Vector3d previousAngularVelocity;
         Eigen::Vector3d desiredAngularVelocity;
+        Eigen::Vector3d desiredAngularAcceleration;
     } _velFilter;
 
     // FT-LQR related
@@ -196,6 +125,8 @@ public:
         Eigen::Matrix<double,6,6> P;
         Eigen::SparseMatrix<double> left;
         Eigen::SparseMatrix<double> right;
+        Eigen::Matrix<double, NUMBER_OF_ROTORS, 1> gainRotorSpeeds;
+        Eigen::Vector3d desiredGainAngularAcceleration;
     } _ftLQR;
 
     // Position PIDD related
@@ -229,6 +160,9 @@ public:
     void c2d(const Eigen::Ref<const Eigen::MatrixXd>& Ac,const Eigen::Ref<const Eigen::MatrixXd>& Bc, double ts, Eigen::Ref<Eigen::MatrixXd> Ad, Eigen::Ref<Eigen::MatrixXd> Bd);
     void gainRLQR(Eigen::Ref<Eigen::MatrixXd> F, Eigen::Ref<Eigen::MatrixXd> G, Eigen::Ref<Eigen::MatrixXd> K);
 public:
+
+    static const struct AP_Param::GroupInfo var_info[];
+    
     // Constructor
     MultiControl();
     
@@ -275,6 +209,21 @@ public:
     float* desiredRotorVoltages();
     double controlTimeStep(){return _controlTimeStep;};
     double measuredTimeStep(){return _measuredTimeStep;};
+
+protected:
+
+    AP_Float _PIDD_KP_X;
+    AP_Float _PIDD_KP_Y;
+    AP_Float _PIDD_KP_Z;
+    AP_Float _PIDD_KI_X;
+    AP_Float _PIDD_KI_Y;
+    AP_Float _PIDD_KI_Z;
+    AP_Float _PIDD_KD_X;
+    AP_Float _PIDD_KD_Y;
+    AP_Float _PIDD_KD_Z;
+    AP_Float _PIDD_KDD_X;
+    AP_Float _PIDD_KDD_Y;
+    AP_Float _PIDD_KDD_Z;
 };
  
 #endif
