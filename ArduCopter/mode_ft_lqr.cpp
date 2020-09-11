@@ -336,6 +336,10 @@ void ModeFT_LQR::set_angle(const Quaternion &q, float climb_rate_cms, bool use_y
 // should be called at 100hz or more
 void ModeFT_LQR::run()
 {
+    if(copter.polyNav.isRunning()){
+        ft_lqr_mode = Guided_WP;
+    }
+    
     // call the correct auto controller
     switch (ft_lqr_mode) {
 
@@ -380,7 +384,8 @@ void ModeFT_LQR::run()
                     uint16_t pwm[NUMBER_OF_ROTORS];
                     for(int it=0;it<NUMBER_OF_ROTORS;it++){
                         throttle[it] = abs(rotSpeeds[it]);
-                        throttle[it] = -1.0249277445252e-6*throttle[it]*throttle[it]+0.002658375700044*throttle[it]-0.413078665036508;
+                        throttle[it] = 8.327766884267e-7*throttle[it]*throttle[it]+0.0005023351541*throttle[it]+0.1911812180;
+                        //throttle[it] = -1.0249277445252e-6*throttle[it]*throttle[it]+0.002658375700044*throttle[it]-0.413078665036508;
                         pwm[it] = (uint16_t) 1000*throttle[it]+1000;
 
                         SRV_Channel::Aux_servo_function_t function = SRV_Channels::get_motor_function(it);
@@ -415,6 +420,15 @@ void ModeFT_LQR::run()
                                                     rotSpeeds[5] << " , " <<
                                                     rotSpeeds[6] << " , " <<
                                                     rotSpeeds[7] << " , " <<
+                                                    " _ftLQR.gainRotorSpeeds:," << 
+                                                    copter.multicontrol._ftLQR.gainRotorSpeeds(0) << " , " <<
+                                                    copter.multicontrol._ftLQR.gainRotorSpeeds(1) << " , " <<
+                                                    copter.multicontrol._ftLQR.gainRotorSpeeds(2) << " , " <<
+                                                    copter.multicontrol._ftLQR.gainRotorSpeeds(3) << " , " <<
+                                                    copter.multicontrol._ftLQR.gainRotorSpeeds(4) << " , " <<
+                                                    copter.multicontrol._ftLQR.gainRotorSpeeds(5) << " , " <<
+                                                    copter.multicontrol._ftLQR.gainRotorSpeeds(6) << " , " <<
+                                                    copter.multicontrol._ftLQR.gainRotorSpeeds(7) << " , " <<                              
                                                     " time step:," <<  copter.multicontrol.measuredTimeStep() << " , " << 
                                                     " currentPosition:," << 
                                                     copter.multicontrol._currentPosition.x() << " , " << 
@@ -428,6 +442,10 @@ void ModeFT_LQR::run()
                                                     copter.multicontrol._desiredForce.x() << " , " << 
                                                     copter.multicontrol._desiredForce.y() << " , " << 
                                                     copter.multicontrol._desiredForce.z() << " , " << 
+                                                    " desiredTorque:," << 
+                                                    copter.multicontrol._desiredTorque.x() << " , " << 
+                                                    copter.multicontrol._desiredTorque.y() << " , " << 
+                                                    copter.multicontrol._desiredTorque.z() << " , " << 
                                                     " desiredAttitude:," << 
                                                     copter.multicontrol._desiredAttitude.w() << " , " <<
                                                     copter.multicontrol._desiredAttitude.x() << " , " << 
@@ -437,6 +455,14 @@ void ModeFT_LQR::run()
                                                     copter.multicontrol._velFilter.desiredAngularVelocity.x() << " , " <<
                                                     copter.multicontrol._velFilter.desiredAngularVelocity.y() << " , " << 
                                                     copter.multicontrol._velFilter.desiredAngularVelocity.z() << " , " <<  
+                                                    " velFilter.desiredAngularAcceleration:," << 
+                                                    copter.multicontrol._velFilter.desiredAngularAcceleration.x() << " , " <<
+                                                    copter.multicontrol._velFilter.desiredAngularAcceleration.y() << " , " << 
+                                                    copter.multicontrol._velFilter.desiredAngularAcceleration.z() << " , " <<  
+                                                    " velFilter.desiredGainAngularAcceleration:," << 
+                                                    copter.multicontrol._ftLQR.desiredGainAngularAcceleration.x() << " , " <<
+                                                    copter.multicontrol._ftLQR.desiredGainAngularAcceleration.y() << " , " << 
+                                                    copter.multicontrol._ftLQR.desiredGainAngularAcceleration.z() << " , " <<  
                                                     " currentAttitude (quat ENU):," << 
                                                     copter.multicontrol._currentAttitude.w() << " , " <<
                                                     copter.multicontrol._currentAttitude.x() << " , " << 
