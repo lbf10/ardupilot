@@ -23,6 +23,8 @@
 
 #define SQRT2_DIV2 0.707106781
 
+#define DERIVATIVE_WINDOW_SIZE 5
+
 #define NUMBER_OF_ROTORS 8
 
 ////////////////////////////////////////////////
@@ -104,6 +106,7 @@ public:
     Eigen::Vector3d _currentAcceleration;
     Eigen::Quaterniond _currentAttitude;
     Eigen::Vector3d _currentAngularVelocity;
+    Eigen::Vector3d _currentAngularAcceleration;
     Eigen::Matrix<double, NUMBER_OF_ROTORS, 1> _currentRotorSpeeds;
 
     // Other
@@ -114,8 +117,9 @@ public:
 
     // Velocity filter related
     struct velocityFilterRelated {
-        Eigen::Vector3d Wbe;
+        Eigen::Matrix<double, 3, DERIVATIVE_WINDOW_SIZE> Wbe;
         Eigen::Vector3d previousAngularVelocity;
+        Eigen::Matrix<double, 3, DERIVATIVE_WINDOW_SIZE> angularVelocity;
         Eigen::Vector3d desiredAngularVelocity;
         Eigen::Vector3d desiredAngularAcceleration;
     } _velFilter;
@@ -154,11 +158,14 @@ public:
     Eigen::Vector3d _Ta;
     Eigen::Quaterniond _qCB;
 
-    /* members */
+    /* private methods */
     void matrixBtoA(const Eigen::Quaterniond& quaternion, Eigen::Ref<Eigen::Matrix3d> transformationBA);
     void swapReferenceFrames(const Eigen::Quaterniond &quatIn, Quaternion &quatOut);
     void c2d(const Eigen::Ref<const Eigen::MatrixXd>& Ac,const Eigen::Ref<const Eigen::MatrixXd>& Bc, double ts, Eigen::Ref<Eigen::MatrixXd> Ad, Eigen::Ref<Eigen::MatrixXd> Bd);
     void gainRLQR(Eigen::Ref<Eigen::MatrixXd> F, Eigen::Ref<Eigen::MatrixXd> G, Eigen::Ref<Eigen::MatrixXd> K);
+    void updateVectorHistory(const Eigen::Ref<const Eigen::VectorXd>& newValue, Eigen::Ref<Eigen::MatrixXd> vectorHistory);
+    void firstDerivative(const Eigen::Ref<const Eigen::MatrixXd>& vectorHistory, Eigen::Ref<Eigen::VectorXd> derivative);
+
 public:
 
     static const struct AP_Param::GroupInfo var_info[];
@@ -175,7 +182,7 @@ public:
 
     // Commands
 
-    // Members
+    // Methods
     bool init();
     bool updateStates(PolyNavigation::state desiredState);
     bool positionControl();

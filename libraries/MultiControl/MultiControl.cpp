@@ -51,7 +51,7 @@
 
 //////////////////////////////////////
 /* General variables default values */
-#define VELOCITY_FILTER_GAIN_X 0.999  
+#define VELOCITY_FILTER_GAIN_X 0.999
 #define VELOCITY_FILTER_GAIN_Y 0.999
 #define VELOCITY_FILTER_GAIN_Z 0.999
 
@@ -347,6 +347,8 @@ bool MultiControl::updateStates(PolyNavigation::state desiredState){
     this->_vectorAux = _ahrs.get_gyro();
     this->_velFilter.previousAngularVelocity = this->_currentAngularVelocity;
     this->_currentAngularVelocity << (double) this->_vectorAux.x, (double) -this->_vectorAux.y, (double) -this->_vectorAux.z;
+    updateVectorHistory(this->_currentAngularVelocity,this->_velFilter.angularVelocity);
+    firstDerivative(this->_velFilter.angularVelocity,this->_currentAngularAcceleration);
 
     // Update control time step
     double thisCall = (double) AP_HAL::millis()/1000.0;
@@ -435,8 +437,6 @@ bool MultiControl::attitudeFTLQRControl(){
     Eigen::Vector3d dWbe;
     Eigen::Vector3d desiredAngularAcceleration;
 
-    previousWbe = this->_velFilter.Wbe;
-    previousAngularVelocity = this->_velFilter.previousAngularVelocity;
     angularVelocity = this->_currentAngularVelocity;
        
     // Quaternion error
@@ -455,9 +455,9 @@ bool MultiControl::attitudeFTLQRControl(){
     Eigen::MatrixXd qeVec(3,1);
     qeVec = qe.vec();
     this->_velFilter.desiredAngularVelocity = (this->_velocityFilterGain.array()*this->_velFilter.desiredAngularVelocity.array()+(Eigen::Array3d::Ones()-this->_velocityFilterGain.array())*(qeVec.array()/this->_controlTimeStep)).matrix();
-    angularAcceleration = (angularVelocity-previousAngularVelocity)/this->_controlTimeStep;
-    this->_velFilter.Wbe = this->_velFilter.desiredAngularVelocity-angularVelocity;
-    dWbe = (this->_velFilter.Wbe-previousWbe)/this->_controlTimeStep;
+    angularAcceleration = this->_currentAngularAcceleration;
+    updateVectorHistory((this->_velFilter.desiredAngularVelocity-angularVelocity),this->_velFilter.Wbe);
+    firstDerivative(this->_velFilter.Wbe,dWbe);
     desiredAngularAcceleration = (dWbe+angularAcceleration);
     this->_velFilter.desiredAngularAcceleration = desiredAngularAcceleration;
     Eigen::MatrixXd torqueAux(3,1);
@@ -534,7 +534,7 @@ bool MultiControl::controlAllocation(){
     return true;
 };
 
-/* Auxiliary private members */
+/* Auxiliary private methods */
 void MultiControl::matrixBtoA(const Eigen::Quaterniond& quaternion, Eigen::Ref<Eigen::Matrix3d> transformationBA){
     double qww = quaternion.w()*quaternion.w();
     double qxx = quaternion.x()*quaternion.x();
@@ -633,6 +633,29 @@ void MultiControl::gainRLQR(Eigen::Ref<Eigen::MatrixXd> F, Eigen::Ref<Eigen::Mat
     blockF.resize(0,0);
     //L = gain.middleRows<6>(19+NUMBER_OF_ROTORS);
     K = gain.middleRows<NUMBER_OF_ROTORS>(25+NUMBER_OF_ROTORS);
+};
+
+
+void MultiControl::updateVectorHistory(const Eigen::Ref<const Eigen::VectorXd>& newValue, Eigen::Ref<Eigen::MatrixXd> vectorHistory){
+    for(int it=0;it<DERIVATIVE_WINDOW_SIZE-1;it++){
+        vectorHistory.col(it) = vectorHistory.col(it+1);
+    }
+    vectorHistory.rightCols(1) << newValue;
+};
+
+void MultiControl::firstDerivative(const Eigen::Ref<const Eigen::MatrixXd>& vectorHistory, Eigen::Ref<Eigen::VectorXd> derivative){
+    Eigen::Matrix<double, 4, DERIVATIVE_WINDOW_SIZE> MQmatrix;
+    MQmatrix << 0.985714285714285, 0.057142857142858, -0.085714285714286, 0.057142857142856, -0.014285714285712,
+               -1.488095238095233, 1.619047619047610,  0.571428571428571,-1.047619047619037,  0.345238095238088,
+                0.642857142857139,-1.071428571428565, -0.142857142857142, 0.928571428571423, -0.357142857142854,
+               -0.083333333333333, 0.166666666666666,  0.000000000000000,-0.166666666666665,  0.083333333333333;
+    Eigen::Vector4d theta;
+    int numberOfVariables = vectorHistory.rows(); 
+    derivative.resize(numberOfVariables);
+    for(int it=0;it<numberOfVariables;it++){
+        theta << MQmatrix*((vectorHistory.row(it)).transpose());
+        derivative(it) = theta(1)+8*theta(2)+48*theta(3);
+    }    
 };
 
 
