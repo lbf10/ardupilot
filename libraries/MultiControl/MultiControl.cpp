@@ -53,17 +53,17 @@
 /* General variables default values */
 #define VELOCITY_FILTER_GAIN_X 0.999
 #define VELOCITY_FILTER_GAIN_Y 0.999
-#define VELOCITY_FILTER_GAIN_Z 0.999
+#define VELOCITY_FILTER_GAIN_Z 0.995
 
 #define CONTROL_TIME_STEP 1/400.0
 
 /////////////////////////////////////////
 /* FT-LQR configuration default values */
-#define FTLQR_CONFIG_P_DIAG 5.0e+10, 5.0e+10, 5.0e+05, 5.0e+04, 5.0e+04, 5.0e+09
-#define FTLQR_CONFIG_Q_DIAG 5.0e+10, 5.0e+10, 5.0e+05, 5.0e+04, 5.0e+04, 5.0e+09
-#define FTLQR_CONFIG_R_DIAG 2.0000e-05, 2.0000e-05, 2.0000e-05, 2.0000e-05, 2.0000e-05, 2.0000e-05, 2.0000e-05, 2.0000e-05
-#define FTLQR_CONFIG_EF_ROW 1, 1, 1, 1, 1, 1
-#define FTLQR_CONFIG_EG_ROW 1, 1, 1, 1, 1, 1, 1, 1
+#define FTLQR_CONFIG_P_DIAG 2.0e+9, 2.0e+9, 2.0e+05, 2.0e+03, 2.0e+03, 2.0e+03
+#define FTLQR_CONFIG_Q_DIAG 2.0e+9, 2.0e+9, 2.0e+05, 2.0e+03, 2.0e+03, 2.0e+03
+#define FTLQR_CONFIG_R_DIAG 1.0000e-03, 1.0000e-03, 1.0000e-03, 1.0000e-03, 1.0000e-03, 1.0000e-03, 1.0000e-03, 1.0000e-03
+#define FTLQR_CONFIG_EF_ROW 100, 100, 100, 100, 100, 100
+#define FTLQR_CONFIG_EG_ROW 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000
 #define FTLQR_CONFIG_H_COL 1, 1, 1, 1, 1, 1
 
 #define FTLQR_CONFIG_MU 1.0e20
